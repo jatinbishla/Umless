@@ -160,6 +160,8 @@ Tuning flags: `--threads N`, `--step` / `--context` (streaming), `--asr <model d
 
 **7. A dictionary that respells, not biases.** Speech models usually hear a rare name right and only spell it wrong, so instead of boosting the decoder (which makes it hallucinate the term), Umless respells near misses that sound alike (a phonetic key plus a per-length edit budget), and exact "heard as" entries handle the rest (`Gaurav = Gorov, Barraf`). If you fix a name Umless typed, it reads the field back and learns your spelling.
 
+**8. The same pipeline on Windows and Linux.** Steps 1–5 and 7 are plain Rust and run unchanged; only the OS layer differs. The hold key is Ctrl + Win / Ctrl + Super (a low-level keyboard hook on Windows; evdev on Linux, since Wayland blocks global hooks, with XRecord as the X11 fallback). Text goes in by clipboard paste (SendInput Ctrl+V; wl-clipboard + wtype/ydotool or xclip + xdotool), with the clipboard restored. The style comes from the focused window's exe name or class and title. The tray icon, window and pill run on tao + wry (WebView2 / WebKitGTK). The LLM uses the CPU by default, or the GPU with `--features vulkan` / `cuda`. Screen context (step 6) and learning from fixes are macOS-only for now; see [docs/cross-platform.md](docs/cross-platform.md).
+
 ## Benchmarks
 
 All numbers from `umless bench`, which replays recordings through the same session code the app uses, then scores against two references: what was *said* (ASR WER) and what was *meant* (final WER, with fillers dropped and self-corrections resolved). WER ignores case, punctuation, number formatting and fillers. Reproduce with `scripts/make-bench-clips.sh && ./target/release/umless bench --dictionary bench/dictionary.txt`.
