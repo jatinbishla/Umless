@@ -9,7 +9,7 @@
 - **Reads on-screen names to spell them right.** Say "pria" in a thread with Priya in it, and it types Priya.
 - **Free and open source.** Apache-2.0, including the fine-tuned model and the training pipeline.
 
-**Requirements:** macOS 13 or later on Apple Silicon. Windows and Linux are in progress on the [`cross-platform`](https://github.com/jatinbishla/Umless/tree/cross-platform) branch and not supported on `main` yet. **First install** builds from source and downloads one tier; on an M5 MacBook Air the build took 94 s, and the downloads took 206 s for Lite (643 MB) and 240 s for Standard (1.77 GB), depending on your connection.
+**Requirements:** macOS 13 or later on Apple Silicon, Windows 10 or 11 (x64), or Linux (X11 or Wayland). All three tiers run on every OS, and the tray app types into any app with a hold key (Fn on macOS, Ctrl + Win / Ctrl + Super elsewhere). Reading on-screen text is macOS-only for now, and the Windows and Linux desktop app is newer and less tested ([details](docs/cross-platform.md)). **First install** builds from source and downloads one tier; on an M5 MacBook Air the build took 94 s, and the downloads took 206 s for Lite (643 MB) and 240 s for Standard (1.77 GB), depending on your connection.
 
 Rust · Parakeet-TDT / Whisper via sherpa-onnx · Qwen via llama.cpp (Metal) · a LoRA fine-tuned 0.8B cleanup model ([Hugging Face](https://huggingface.co/jatinbishla/Umless-Lite-0.8B-r3-GGUF)) · macOS Accessibility.
 
@@ -261,7 +261,7 @@ It ties the base model on synthetic clips and is slightly behind on my voice ove
 ## Roadmap
 
 - **Signed DMG and Homebrew install**, so trying Umless doesn't need a Rust build.
-- **Windows and Linux apps**: tray app, hold-to-talk key and typing are on the [`cross-platform`](https://github.com/jatinbishla/Umless/tree/cross-platform) branch.
+- **Screen reading on Windows and Linux** (UI Automation, AT-SPI), so names, tone and command-mode context work there too, and packaged installers (MSI, .deb / Flatpak). See [docs/cross-platform.md](docs/cross-platform.md).
 - **GPU Whisper for Max** (whisper.cpp on Metal or a Core ML encoder), to cut Max's CPU-bound floor.
 - **Voice commands** beyond command mode: "new line", "delete that", "send".
 - **Better Hindi and Hinglish**, including Roman-script output.
