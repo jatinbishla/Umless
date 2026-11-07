@@ -3,12 +3,12 @@
 # Run it yourself after the benchmark shows the model wins; it needs your HF login
 # (`finetune/.venv/bin/hf auth login`, with a write token).
 #
-#   finetune/publish.sh [repo]      # default: jatinbishla/Umless-Lite-Cleanup-0.8B-GGUF
+#   finetune/publish.sh [repo]      # default: jatinbishla/Umless-Lite-0.8B-r3-GGUF
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-REPO="${1:-jatinbishla/Umless-Lite-Cleanup-0.8B-GGUF}"
-GGUF=models/Umless-Lite-Cleanup-0.8B-Q4_K_M.gguf
+REPO="${1:-jatinbishla/Umless-Lite-0.8B-r3-GGUF}"
+GGUF=models/Umless-Lite-0.8B-r3-Q4_K_M.gguf
 HF=finetune/.venv/bin/hf
 
 [ -f "$GGUF" ] || { echo "missing $GGUF (download it from Google Drive → umless/)"; exit 1; }

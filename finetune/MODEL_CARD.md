@@ -10,26 +10,27 @@ tags:
 - speech-to-text
 - text-cleanup
 - disfluency-removal
+- lora
 - umless
 - gguf
 - llama.cpp
 ---
 
-# Umless Lite Cleanup 0.8B (GGUF)
+# Umless Lite 0.8B, round 3 (GGUF Q4_K_M)
 
-**Raw dictation in, the text you meant out.** This is the cleanup model behind the Lite tier of [Umless](https://github.com/jatinbishla/Umless), an open-source, fully local voice-typing app. It is Qwen3.5-0.8B fine-tuned for one job:
+**Raw dictation in, the text the speaker meant out.** This is the cleanup model behind the Lite tier of [Umless](https://github.com/jatinbishla/Umless), an open-source, fully local voice-dictation app. It is [Qwen/Qwen3.5-0.8B](https://huggingface.co/Qwen/Qwen3.5-0.8B) with a LoRA fine-tune, merged and quantised to Q4_K_M for llama.cpp.
 
-| Speech recognizer heard | Model writes |
+| Speech recognizer heard | Umless Lite types (this model + Umless's rules) |
 |---|---|
-| `Can we move the review to Thursday? No. Wait, Friday at three PM and um tell Rohan.` | `Can we move the review to Friday at 3 pm and tell Rohan.` |
+| `Can we move the review to Thursday? No. Wait, Friday at three PM and um tell Rohan.` | `Can we move the review to Friday at 3 PM and tell Rohan?` |
 | `The invoice is twelve thousand four hundred dollars all and retainage is ten percent.` | `The invoice is $12,400 and retainage is 10%.` |
 | `We we need the the deck by Monday.` | `We need the deck by Monday.` |
 
-It removes fillers (including the ones a speech recognizer mishears as words, like "uh" written as "all"), stammers and self-corrections ("Thursday, no wait, Friday" → "Friday"). It also fixes punctuation and casing, and writes numbers, money, percentages and times as digits. **It changes nothing else, and it never answers the text,** even when the text is a question or a request.
+It removes fillers (including ones a small speech recognizer mishears as words, like "uh" written as "all"), stammers and self-corrections, fixes punctuation and casing, and writes numbers as digits. It also has a formal mode, an AI-prompt mode, and a command mode (on-screen text + a spoken instruction → the text to type). It is trained to rewrite, never to answer.
 
 ## Use
 
-You don't need to download this file yourself: `./install.sh lite` in Umless fetches it. To run it standalone with llama.cpp, use this prompt format. It is the exact format the model was trained on; other formats will work worse.
+`./install.sh lite` (or `umless models install lite`) in Umless downloads this file. To run it standalone with llama.cpp, use the format it was trained on:
 
 ```
 <|im_start|>system
@@ -44,42 +45,42 @@ mode: clean<|im_end|>
 
 ```
 
-Use greedy decoding (temperature 0) and stop at `<|im_end|>`.
-
-The whole prompt is about 40 tokens. The base model needs a ~600-token few-shot prompt for the same job, so cleanup is also faster.
+Use greedy decoding (temperature 0) and stop at `<|im_end|>`. The other modes swap the system line; the exact strings are `SYSTEMS` in [`finetune/lite_cleanup.py`](https://github.com/jatinbishla/Umless/blob/main/finetune/lite_cleanup.py).
 
 ## Results
 
-These come from Umless's benchmark (`umless bench`): the same 11 speech clips go through each tier's speech recognizer, then its cleanup model, and the output is scored against what the speaker meant. "WER" is word error rate; lower is better.
+From Umless's benchmark (`umless bench`): recordings go through Lite's speech recognizer (Parakeet-TDT 110M) and then the cleanup model, and the output is scored against what the speaker meant. WER ignores case, punctuation, number formatting and fillers. Both models run behind the same deterministic rules (fillers, corrections, digits, question marks) and the same faithfulness guard. Apple M5, Q4_K_M, Metal.
 
-| Tier | Cleanup model | Final WER | Cleanup time (p50) |
-|---|---|---|---|
-| Lite, before | Qwen3.5-0.8B, few-shot prompt | 6.6% | 563 ms |
-| **Lite, this model** | **Umless Lite Cleanup 0.8B** | _TBD_ | _TBD_ |
-| Standard | Qwen3.5-2B, few-shot prompt | 3.6% | 1,169 ms |
-| Max | Qwen3-4B-Instruct-2507, few-shot prompt | 1.5% | 979 ms |
+| | Qwen3.5-0.8B base, few-shot | **This model** |
+|---|---|---|
+| Final WER, 11 synthetic clips | 5.7% | 5.7% |
+| Final WER, the author's voice (5 read passages) | 13.6% | 14.0% |
+| ↳ passage with a phrase-level correction ("…two thirty pm? Actually, no, let's make it Thursday morning") | 37.7% | **17.0%** |
+| 30-case text suite (fillers, corrections, numbers, questions, styles), passes | 25/30 | 23/30 |
+| Prompt size, same 13-word dictation | 575 tokens | **77 tokens** |
+| Cleanup time p50, author's voice set (same machine, same run conditions) | 1,079 ms | 986 ms |
 
-The benchmark clips and their sentences were held out of training (see below). Measured on an Apple M5, Q4_K_M, Metal.
+**Read this honestly:** it ties the base model on synthetic clips and is slightly behind it on the author's voice overall. It resolved the phrase-level self-correction the base model didn't, needs a 77-token prompt instead of 575, and was the best Lite model in hand-checked command-mode tasks (round 2 invented a person in a Gmail reply; round 3 didn't). It still flattens "first… second… third" into prose in prompt mode, so Umless keeps Lite on plain cleanup in AI apps.
 
 ## Training
 
-- **Method:** LoRA (rank 16, alpha 32, dropout 0.05) on every linear layer of the text model: attention, gated-delta-net projections and MLP. 1.2% of the weights are trainable. The adapter is merged into the original checkpoint, then converted to GGUF and quantized to Q4_K_M with llama.cpp.
-- **Training run:** 2 epochs, an effective batch of 32, learning rate 2e-4 with cosine decay, on a free Google Colab T4. It took about 1 hour.
-- **Data:** 5,026 pairs, all synthetic, with no user data.
-  1. [Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507) wrote 2,513 clean, typed-style messages across 31 themes. Examples include Slack messages, emails, construction pay applications, standups, and prompts to AI assistants. They use varied names, amounts, dates and times.
-  2. A script turns each clean message into what a person *says*: fillers, stammers, and self-corrections in three styles (inline, "make that…", and restart).
-  3. The script then adds the mistakes a small speech recognizer makes on that speech: fillers misheard as short words, numbers spoken as words, corrections split across sentences ("Thursday? No. Wait, Friday"), and punctuation guesses.
-  4. The clean message is the target, so labels are exact. Names are never misspelled in the input, so the model doesn't learn to invent words it didn't hear.
-- **Held out:** any message sharing a 5-word sequence with Umless's benchmark clips or reading passages was dropped.
-- **Code:** the full pipeline is in [`finetune/lite_cleanup.py`](https://github.com/jatinbishla/Umless/blob/main/finetune/lite_cleanup.py), and the [Colab notebook](https://github.com/jatinbishla/Umless/blob/main/finetune/Umless_Lite_finetune.ipynb) reproduces it end to end.
+- **Method:** LoRA (rank 16, alpha 32, dropout 0.05) on the text model's linear layers: full-attention and linear-attention projections and the MLPs. The adapter is merged into the original checkpoint (every other tensor kept), converted to GGUF and quantised to Q4_K_M with llama.cpp.
+- **Run (round 3):** 1.5 epochs, effective batch 32, learning rate 2e-4, on a free Google Colab T4 (the fine-tune step takes about 90–100 minutes).
+- **Data, all synthetic, no user data:**
+  1. [Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507) writes the *clean* side: everyday messages across 39 themes, spoken requests to AI assistants with the prompt they meant, dictation with its polished formal version, and 800 command-mode examples (screen + instruction → reply). Style pairs are filtered: enumerations must stay numbered lists, questions must stay questions, qualifiers must survive.
+  2. A script derives the *spoken, misheard* side from each clean message: fillers, stammers, self-corrections in several shapes (inline, "make that…", restarts, phrase-level), numbers as words, lost capitals, and the mistakes Parakeet-110M makes ("uh" heard as "all", corrections split into "Thursday? No. Wait, Friday").
+  3. Because the clean text is the target, labels are exact by construction, and names are never misspelled in inputs, so the model doesn't learn to invent words it didn't hear.
+- **Held out:** messages sharing a 5-word sequence with Umless's benchmark clips or reading passages are dropped.
+- **History:** round 1 (4,826 pairs, 2 epochs, 71 minutes on a T4) tied the base model but deleted real words like "I'm"; round 2 added phrase-level corrections, contrastive pairs and the styles; round 3 added command mode and the style filters.
+- **Code:** [`finetune/lite_cleanup.py`](https://github.com/jatinbishla/Umless/blob/main/finetune/lite_cleanup.py) and the [Colab notebook](https://github.com/jatinbishla/Umless/blob/main/finetune/Umless_Lite_finetune.ipynb) reproduce it end to end.
 
 ## Limitations
 
-- **English only.** Hinglish and other languages are not trained yet.
-- **Cleanup only.** It does not change tone, summarize or write new text. Those are separate Umless modes that use larger models.
-- **It can over-delete.** A real short word that looks like a misheard filler ("and", "on", "a") is occasionally removed. Umless runs a faithfulness check on every output, and if the model drops or adds content the speaker didn't say, Umless falls back to rule-based cleanup.
-- **The training speech is synthetic.** Real accents and noisy rooms produce mistakes the noise model doesn't cover. Later versions will add real, consented recordings.
+- **English only.**
+- **Prompt mode flattens lists** and occasionally drops a requirement; Umless keeps Lite on plain cleanup in AI apps.
+- **Can over-delete.** A real short word that looks like a misheard filler is occasionally removed; Umless's guard falls back to rule-based cleanup when output drops or adds content.
+- **Synthetic speech noise.** Real accents and noisy rooms produce mistakes the noise model doesn't cover.
 
 ## License
 
-Apache-2.0, the same as the base model [Qwen/Qwen3.5-0.8B](https://huggingface.co/Qwen/Qwen3.5-0.8B).
+Apache-2.0, the same as the base model.
