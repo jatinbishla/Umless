@@ -9,7 +9,7 @@
 - **Reads on-screen names to spell them right.** Say "pria" in a thread with Priya in it, and it types Priya.
 - **Free and open source.** Apache-2.0, including the fine-tuned model and the training pipeline.
 
-**Requirements:** macOS 13 or later on Apple Silicon. Windows and Linux are in progress on the [`cross-platform`](https://github.com/jatinbishla/Umless/tree/cross-platform) branch and not supported on `main` yet. **First install** builds from source and downloads one tier; on an M5 MacBook Air the build took 94 s, and the downloads took 206 s for Lite (643 MB) and 240 s for Standard (1.77 GB), depending on your connection.
+**Requirements:** macOS 13 or later on Apple Silicon. Windows and Linux are in progress on the [`cross-platform`](https://github.com/jatinbishla/Umless/tree/cross-platform) branch and not supported on `main` yet. **First install** builds from source and downloads one tier. On an M5 MacBook Air, a fresh-clone build took 71 s and 94 s on an idle machine and 635 s on a heavily loaded one; a Mac without Rust also downloads the toolchain and crates first. Lite's models downloaded in 57 s and Standard's (1.77 GB) in 240 s; your connection decides this part.
 
 Rust · Parakeet-TDT / Whisper via sherpa-onnx · Qwen via llama.cpp (Metal) · a LoRA fine-tuned 0.8B cleanup model ([Hugging Face](https://huggingface.co/jatinbishla/Umless-Lite-0.8B-r3-GGUF)) · macOS Accessibility.
 
