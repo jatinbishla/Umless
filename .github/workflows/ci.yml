@@ -35,11 +35,14 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # sherpa-onnx downloads its prebuilt libraries into target/sherpa-onnx-prebuilt, which
-      # the cache keeps only in part; always rerun its build script (a ~30 MB download).
+      # sherpa-onnx downloads its prebuilt libraries into target/sherpa-onnx-prebuilt. The
+      # cache restores that folder without the library files, and the build script trusts
+      # any folder it finds: drop both and let it download again (~30-100 MB).
       - name: Refresh sherpa-onnx libraries
         shell: bash
-        run: cargo clean --release -p sherpa-onnx-sys
+        run: |
+          rm -rf target/sherpa-onnx-prebuilt
+          cargo clean --release -p sherpa-onnx-sys
 
       - name: Build
         run: cargo build --release --locked
