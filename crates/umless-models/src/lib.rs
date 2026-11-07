@@ -26,6 +26,9 @@ pub enum Tier {
     Max,
 }
 
+/// Lite's cleanup model before Umless's fine-tune was published (Qwen3.5-0.8B, unsloth GGUF).
+const LITE_STOCK_LLM: &str = "Qwen3.5-0.8B-Q4_K_M.gguf";
+
 impl Tier {
     pub const ALL: [Tier; 3] = [Tier::Lite, Tier::Standard, Tier::Max];
 
@@ -67,10 +70,15 @@ impl Tier {
         }
     }
 
-    /// Cleanup LLM: (Hugging Face repo, GGUF file, approx MB).
+    /// Cleanup LLM: (Hugging Face repo, GGUF file, approx MB). Lite's is Umless's own LoRA
+    /// fine-tune of Qwen3.5-0.8B.
     fn llm(self) -> (&'static str, &'static str, u32) {
         match self {
-            Tier::Lite => ("unsloth/Qwen3.5-0.8B-GGUF", "Qwen3.5-0.8B-Q4_K_M.gguf", 533),
+            Tier::Lite => (
+                "jatinbishla/Umless-Lite-0.8B-r3-GGUF",
+                "Umless-Lite-0.8B-r3-Q4_K_M.gguf",
+                517,
+            ),
             Tier::Standard => ("unsloth/Qwen3.5-2B-GGUF", "Qwen3.5-2B-Q4_K_M.gguf", 1281),
             Tier::Max => (
                 "unsloth/Qwen3-4B-Instruct-2507-GGUF",
@@ -91,10 +99,15 @@ impl Tier {
     /// The cleanup LLM to load. Lite uses Umless's own fine-tune when one is in the models
     /// folder (the newest round), and the stock model otherwise.
     pub fn llm_path(self, models: &Path) -> PathBuf {
-        if self == Tier::Lite
-            && let Some(file) = newest_fine_tune(models)
-        {
-            return file;
+        if self == Tier::Lite {
+            if let Some(file) = newest_fine_tune(models) {
+                return file;
+            }
+            // Installs from before the fine-tune was published have only the stock model.
+            let stock = models.join(LITE_STOCK_LLM);
+            if stock.is_file() {
+                return stock;
+            }
         }
         models.join(self.llm().1)
     }
@@ -226,6 +239,13 @@ mod tests {
     fn lite_uses_the_newest_fine_tune() {
         let dir = std::env::temp_dir().join(format!("umless-models-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
+        // Nothing installed: the published fine-tune is what to download.
+        assert_eq!(
+            Tier::Lite.llm_path(&dir),
+            dir.join("Umless-Lite-0.8B-r3-Q4_K_M.gguf")
+        );
+        // An older install with only the stock model keeps working.
+        std::fs::write(dir.join("Qwen3.5-0.8B-Q4_K_M.gguf"), "").unwrap();
         assert_eq!(
             Tier::Lite.llm_path(&dir),
             dir.join("Qwen3.5-0.8B-Q4_K_M.gguf")
