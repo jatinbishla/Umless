@@ -54,10 +54,12 @@ EOF
 
 CERT="Umless Local Signing"
 if security find-certificate -c "$CERT" >/dev/null 2>&1; then
-  codesign --force --sign "$CERT" --identifier "$ID" "$APP" 2>/dev/null
+  codesign --force --sign "$CERT" --identifier "$ID" "$APP" \
+    || { echo "codesign with \"$CERT\" failed (see above); run scripts/make-signing-cert.sh again" >&2; exit 1; }
   echo "Signed with \"$CERT\": permissions carry over between rebuilds."
 else
-  codesign --force --sign - --identifier "$ID" "$APP" 2>/dev/null
+  codesign --force --sign - --identifier "$ID" "$APP" \
+    || { echo "ad hoc codesign failed (see above)" >&2; exit 1; }
   echo "Signed ad hoc (run scripts/make-signing-cert.sh to keep permissions across rebuilds)."
 fi
 
