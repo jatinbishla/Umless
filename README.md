@@ -9,7 +9,7 @@
 - **Reads on-screen names to spell them right.** Say "pria" in a thread with Priya in it, and it types Priya.
 - **Free and open source.** Apache-2.0, including the fine-tuned model and the training pipeline.
 
-**Requirements:** macOS 13 or later on Apple Silicon. Windows and Linux are in progress on the [`cross-platform`](https://github.com/jatinbishla/Umless/tree/cross-platform) branch and not supported on `main` yet. **First install** builds from source and downloads one tier. On an M5 MacBook Air, a fresh-clone build took 71 s and 94 s on an idle machine and 635 s on a heavily loaded one; a Mac without Rust also downloads the toolchain and crates first. Lite's models downloaded in 57 s and Standard's (1.77 GB) in 240 s; your connection decides this part.
+**Requirements:** macOS 13 or later on Apple Silicon, Windows 10 or 11 (x64), or Linux (X11 or Wayland). All three tiers run on every OS, and the tray app types into any app with a hold key (Fn on macOS, Ctrl + Win / Ctrl + Super elsewhere). Reading on-screen text is macOS-only for now, and the Windows and Linux desktop app is newer and less tested ([details](docs/cross-platform.md)). **First install** builds from source and downloads one tier. On an M5 MacBook Air, a fresh-clone build took 71 s and 94 s on an idle machine and 635 s on a heavily loaded one; a Mac without Rust also downloads the toolchain and crates first. Lite's models downloaded in 57 s and Standard's (1.77 GB) in 240 s; your connection decides this part.
 
 Rust · Parakeet-TDT / Whisper via sherpa-onnx · Qwen via llama.cpp (Metal) · a LoRA fine-tuned 0.8B cleanup model ([Hugging Face](https://huggingface.co/jatinbishla/Umless-Lite-0.8B-r3-GGUF)) · macOS Accessibility.
 
@@ -29,14 +29,43 @@ Methodology and the full history are in [Benchmarks](#benchmarks) and [docs/benc
 
 ## Install (one command)
 
-Needs macOS 13 or later, 1–6 GB free (by tier) and an admin account. On a brand-new Mac, run `xcode-select --install` first: `git clone` needs Apple's command line tools.
+Umless runs on **macOS**, **Windows** and **Linux**. Each needs 1–6 GB free (by tier). The macOS app is the most complete; on Windows and Linux everything except reading the screen works, see [docs/cross-platform.md](docs/cross-platform.md).
+
+### macOS
+
+Needs macOS 13 or later and an admin account. On a brand-new Mac, run `xcode-select --install` first: `git clone` needs Apple's command line tools.
 
 ```bash
 git clone https://github.com/jatinbishla/Umless.git && cd Umless
 ./install.sh
 ```
 
-That's all. The installer builds Umless (installing Rust and cmake first if you don't have them), suggests a tier for your machine, downloads exactly the models that tier needs, adds a local signing certificate to your login keychain (so updates keep their permissions), installs **/Applications/Umless.app** and opens it. Nothing else to clone or download. The app reads its models from this folder's `models/`, so keep the folder where it is (or set `UMLESS_MODELS` before installing). To skip the questions, pass the tier: `./install.sh lite`, `./install.sh standard`, `./install.sh max`, or `./install.sh all`.
+### Windows
+
+Windows 10 or 11 (x64). In PowerShell:
+
+```powershell
+git clone https://github.com/jatinbishla/Umless.git; cd Umless
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+The installer offers to install what's missing with winget (Rust, the Visual Studio C++ build tools, cmake, LLVM), builds Umless, downloads the tier you pick, installs `umless.exe` to `%LOCALAPPDATA%\Programs\Umless` with a Start menu entry, and starts it in the tray. **Hold Ctrl + Win** anywhere, speak, let go; **Ctrl + Win + Alt** is command mode. `UMLESS_HOLD_KEY=right-ctrl` (or `right-alt`, `ctrl+alt`) picks another hold key. No permissions to grant; Windows won't let it type into apps running as administrator.
+
+### Linux
+
+X11 or Wayland; tested on Ubuntu 24.04 in CI. apt, dnf and pacman are supported:
+
+```bash
+git clone https://github.com/jatinbishla/Umless.git && cd Umless
+./install.sh
+sudo usermod -aG input $USER    # once, then log out and back in: lets Umless see the hold key
+```
+
+The installer installs the build tools and libraries (GTK 3, WebKitGTK 4.1, ALSA) and the typing tools (wl-clipboard + wtype/ydotool on Wayland, xclip + xdotool on X11), builds Umless, downloads your tier, and installs `~/.local/bin/umless` with an app-menu entry. **Hold Ctrl + Super**, speak, let go; **+ Alt** is command mode. Wayland blocks global keyboard hooks, so Umless reads the keyboard devices directly (hence the `input` group); on X11 it falls back to XRecord without it. On GNOME Wayland, typing uses `ydotool` (start `ydotoold`), and per-app styles fall back to Clean because GNOME doesn't tell apps which window is focused. A server without a desktop can build only the CLI: `cargo build --release -p umless-cli --no-default-features`. GPU offload for the LLM: add `--features vulkan` (or `cuda`, `rocm`) to the build.
+
+### All platforms
+
+The installer builds Umless (installing Rust and cmake first if you don't have them), suggests a tier for your machine, downloads exactly the models that tier needs and, on macOS, adds a local signing certificate to your login keychain (so updates keep their permissions), installs **/Applications/Umless.app** and opens it. Nothing else to clone or download. The app reads its models from this folder's `models/`, so keep the folder where it is (or set `UMLESS_MODELS` before installing). To skip the questions, pass the tier: `./install.sh lite`, `./install.sh standard`, `./install.sh max`, or `./install.sh all`.
 
 | Tier | Download | Best for |
 |---|---|---|
@@ -150,6 +179,8 @@ Tuning flags: `--threads N`, `--step` / `--context` (streaming), `--asr <model d
 
 **7. A dictionary that respells, not biases.** Speech models usually hear a rare name right and only spell it wrong, so instead of boosting the decoder (which makes it hallucinate the term), Umless respells near misses that sound alike (a phonetic key plus a per-length edit budget), and exact "heard as" entries handle the rest (`Gaurav = Gorov, Barraf`). If you fix a name Umless typed, it reads the field back and learns your spelling.
 
+**8. The same pipeline on Windows and Linux.** Steps 1–5 and 7 are plain Rust and run unchanged; only the OS layer differs. The hold key is Ctrl + Win / Ctrl + Super (a low-level keyboard hook on Windows; evdev on Linux, since Wayland blocks global hooks, with XRecord as the X11 fallback). Text goes in by clipboard paste (SendInput Ctrl+V; wl-clipboard + wtype/ydotool or xclip + xdotool), with the clipboard restored. The style comes from the focused window's exe name or class and title. The tray icon, window and pill run on tao + wry (WebView2 / WebKitGTK). The LLM uses the CPU by default, or the GPU with `--features vulkan` / `cuda`. Screen context (step 6) and learning from fixes are macOS-only for now; see [docs/cross-platform.md](docs/cross-platform.md).
+
 ## Benchmarks
 
 All numbers come from `umless bench`, which replays recordings through the same session code the app uses and scores against two references: what was *said* (ASR WER) and what was *meant* (final WER, with fillers dropped and self-corrections resolved). WER ignores case, punctuation, number formatting and fillers. Reproduce with `scripts/make-bench-clips.sh && ./target/release/umless bench --dictionary bench/dictionary.txt`.
@@ -230,7 +261,7 @@ It ties the base model on synthetic clips and is slightly behind on my voice ove
 ## Roadmap
 
 - **Signed DMG and Homebrew install**, so trying Umless doesn't need a Rust build.
-- **Windows and Linux apps**: tray app, hold-to-talk key and typing are on the [`cross-platform`](https://github.com/jatinbishla/Umless/tree/cross-platform) branch.
+- **Screen reading on Windows and Linux** (UI Automation, AT-SPI), so names, tone and command-mode context work there too, and packaged installers (MSI, .deb / Flatpak). See [docs/cross-platform.md](docs/cross-platform.md).
 - **GPU Whisper for Max** (whisper.cpp on Metal or a Core ML encoder), to cut Max's CPU-bound floor.
 - **Voice commands** beyond command mode: "new line", "delete that", "send".
 - **Better Hindi and Hinglish**, including Roman-script output.
@@ -257,7 +288,8 @@ Any change to recognition or cleanup should include the bench table for **all th
 | `crates/umless-cleanup` | rules, LLM prompt, faithfulness guard |
 | `crates/umless-eval` | WER and text normalisation for benchmarks |
 | `apps/cli` | the `umless` binary (`app`, `listen`, `command`, `clean`, `transcribe`, `stream`, `devices`, `models`, `bench`) |
-| `install.sh` | build + model download, by tier |
+| `crates/umless-hotkey`, `-insert`, `-context`, `-shell` | the hold key, typing, the focused app, the menu-bar/tray UI (macOS, Windows, Linux) |
+| `install.sh` / `install.ps1` | build + model download, by tier (macOS and Linux / Windows) |
 | `scripts/` | benchmark clip synthesis and passage recording |
 
 ## License
