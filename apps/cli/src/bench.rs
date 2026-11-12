@@ -31,6 +31,8 @@ struct ClipResult {
     asr: Replay,
     asr_wer: Wer,
     cleaned: Option<Cleaned>,
+    /// The LLM call failed; `cleaned` holds the rules-only text the app would type.
+    llm_error: Option<String>,
     final_wer: Option<Wer>,
     /// Final WER if we only ran the deterministic rules (no LLM): the bar the LLM must beat.
     rules_wer: Option<Wer>,
@@ -100,8 +102,27 @@ pub fn run(
         for clip in &clips {
             let asr = replay(&engine, &clip.pcm, fast, false)?;
             let asr_wer = wer(&clip.reference, &asr.text);
+            // As in the app: if the LLM errors, type the rules-only text and carry on.
+            let mut llm_error = None;
             let cleaned = match &cleaner {
-                Some(cl) => Some(cl.clean(&asr.text)?),
+                Some(cl) => {
+                    let t = Instant::now();
+                    match cl.clean(&asr.text) {
+                        Ok(cd) => Some(cd),
+                        Err(e) => {
+                            eprintln!("  {tier:<8} {:<16} LLM error: {e:#}", clip.id);
+                            llm_error = Some(format!("{e:#}"));
+                            Some(umless_cleanup::Cleaned {
+                                text: umless_cleanup::without_llm(&asr.text, &dict),
+                                path: umless_cleanup::Path::Fallback,
+                                verdict: None,
+                                llm_text: None,
+                                generation: None,
+                                time: t.elapsed(),
+                            })
+                        }
+                    }
+                }
                 None => None,
             };
             let final_wer = match (&cleaned, &clip.clean) {
@@ -116,6 +137,7 @@ pub fn run(
                 asr,
                 asr_wer,
                 cleaned,
+                llm_error,
                 final_wer,
                 rules_wer,
             };
@@ -128,6 +150,9 @@ pub fn run(
                 r.total().as_secs_f64() * 1e3
             );
             results.push(r);
+        }
+        if cleaner.is_some() && results.iter().all(|r| r.llm_error.is_some()) {
+            bail!("{tier}: the cleanup LLM failed on every clip");
         }
         let mut size = dir_size(&tier.asr_path(&c.models));
         if cleaner.is_some() {
@@ -261,11 +286,13 @@ fn render(clips: &[Clip], runs: &[TierRun], fast: bool, show: bool) -> String {
             .results
             .iter()
             .filter(|x| {
-                x.cleaned
-                    .as_ref()
-                    .is_some_and(|c| c.path == umless_cleanup::Path::Fallback)
+                x.llm_error.is_none()
+                    && x.cleaned
+                        .as_ref()
+                        .is_some_and(|c| c.path == umless_cleanup::Path::Fallback)
             })
             .count();
+        let errors = r.results.iter().filter(|x| x.llm_error.is_some()).count();
         let audio: f32 = r.results.iter().map(|x| x.asr.audio_secs).sum();
         let decode: f32 = r
             .results
@@ -295,7 +322,12 @@ fn render(clips: &[Clip], runs: &[TierRun], fast: bool, show: bool) -> String {
                 format!("{:.0} ms", percentile(clean_ms, 0.5))
             },
             if r.llm.is_some() {
-                format!("{fallbacks}/{}", r.results.len())
+                let n = r.results.len();
+                if errors > 0 {
+                    format!("{fallbacks}/{n} (+{errors} LLM errors, rules-only text)")
+                } else {
+                    format!("{fallbacks}/{n}")
+                }
             } else {
                 "—".into()
             },
@@ -336,6 +368,10 @@ fn render(clips: &[Clip], runs: &[TierRun], fast: bool, show: bool) -> String {
                 let _ = writeln!(s, "- {} ASR: {}", r.tier, x.asr.text);
                 if let Some(cd) = &x.cleaned {
                     let tag = match cd.path {
+                        _ if x.llm_error.is_some() => format!(
+                            "LLM error, rules only: {}",
+                            x.llm_error.as_deref().unwrap_or("")
+                        ),
                         umless_cleanup::Path::Rules => "rules".to_string(),
                         umless_cleanup::Path::Llm => "llm".to_string(),
                         umless_cleanup::Path::Fallback => format!(

@@ -173,6 +173,16 @@ impl Llm {
     /// `prefix` is the part shared between calls (instructions, examples): its state is computed
     /// once and restored from a snapshot afterwards. Speculative drafts are looked up in `suffix`.
     pub fn complete(&self, prefix: &str, suffix: &str, max_tokens: usize) -> Result<Generation> {
+        let out = self.complete_cached(prefix, suffix, max_tokens);
+        if out.is_err() {
+            // A failed pass (e.g. a GPU command buffer error) can leave the context or the prefix
+            // snapshot half-written: start the next call from a fresh context.
+            *self.cache.borrow_mut() = Cache::default();
+        }
+        out
+    }
+
+    fn complete_cached(&self, prefix: &str, suffix: &str, max_tokens: usize) -> Result<Generation> {
         let vocab = self.model.vocab();
         let mut cache = self.cache.borrow_mut();
         if cache.ctx.is_none() {
