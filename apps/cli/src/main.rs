@@ -52,7 +52,7 @@ pub(crate) struct Common {
     #[arg(long, global = true)]
     pub(crate) llm: Option<String>,
     /// LLM layers to run on the GPU (Metal/CUDA/Vulkan); 0 = CPU only.
-    #[arg(long, default_value_t = 999, global = true)]
+    #[arg(long, env = "UMLESS_GPU_LAYERS", default_value_t = 999, global = true)]
     gpu_layers: u32,
     /// Inference threads; 0 = all cores, capped at 8.
     #[arg(long, default_value_t = 0, global = true)]

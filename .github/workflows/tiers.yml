@@ -33,6 +33,11 @@ jobs:
       matrix:
         os: [macos-15, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # The macOS runner's virtual GPU fails Metal compute passes ("Decode Error -3") once Max's
+      # 4B model has run, and stays broken for later processes. Run the LLMs on the CPU there,
+      # as the Windows and Linux jobs do; real Macs use Metal (checked locally with `umless bench`).
+      UMLESS_GPU_LAYERS: ${{ startsWith(matrix.os, 'macos') && '0' || '999' }}
     steps:
       - uses: actions/checkout@v4
       - name: Linux packages
