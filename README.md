@@ -27,7 +27,11 @@ Rust · Parakeet-TDT / Whisper via sherpa-onnx · Qwen via llama.cpp (Metal) · 
 
 Methodology and the full history are in [Benchmarks](#benchmarks) and [docs/benchmarks.md](docs/benchmarks.md); the design is in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Install (one command)
+## Install
+
+**Download (no terminal needed).** Get Umless from the [latest release](https://github.com/jatinbishla/Umless/releases/latest): [Mac (Apple Silicon)](https://github.com/jatinbishla/Umless/releases/latest/download/Umless-mac-arm64.dmg) · [Windows](https://github.com/jatinbishla/Umless/releases/latest/download/Umless-windows-x64-setup.exe) · [Linux AppImage](https://github.com/jatinbishla/Umless/releases/latest/download/Umless-linux-x86_64.AppImage). Open it and Umless asks which model tier to download (it suggests one for your machine), then walks you through the permissions. The builds aren't signed yet, so macOS and Windows warn the first time: on a Mac, open System Settings → Privacy & Security and click **Open Anyway**; on Windows, click **More info → Run anyway**. The Windows and Linux downloads are new and haven't been tried on many machines yet. Details: [docs/releasing.md](docs/releasing.md).
+
+**From source (one command).** To build it yourself, or to compare tiers with `umless bench`, use the installers below. A source install keeps its models in the clone's `models/` folder; the downloads keep them in your user data folder (`~/Library/Application Support/Umless/models`, `%LOCALAPPDATA%\Umless\models`, `~/.local/share/umless/models`).
 
 Umless runs on **macOS**, **Windows** and **Linux**. Each needs 1–6 GB free (by tier). The macOS app is the most complete; on Windows and Linux everything except reading the screen works, see [docs/cross-platform.md](docs/cross-platform.md).
 
@@ -153,7 +157,7 @@ Tuning flags: `--threads N`, `--step` / `--context` (streaming), `--asr <model d
 
 **Which tier should I pick?** **Standard** for most people: 3.6% word error rate, 760 ms typical key-up → text, 25 European languages. **Lite** if disk or memory is tight (678 MB, English only). **Max** if accuracy matters more than speed or you need Hindi or another non-European language (1.8% word error rate, 1250 ms typical). `./install.sh` suggests one for your machine, and you can add others any time.
 
-**Why build from source? Is there a DMG?** Not yet. A signed, notarised DMG needs an Apple Developer ID, which is on the [roadmap](#roadmap) along with Homebrew. Until then `install.sh` builds it and signs it with a certificate it creates in your login keychain, so macOS keeps the app's permissions across updates.
+**Is there a download, or do I have to build it?** There is a download for each OS on the [releases page](https://github.com/jatinbishla/Umless/releases/latest). They aren't signed yet (a signed, notarised Mac build needs an Apple Developer ID, which is on the [roadmap](#roadmap)), so macOS and Windows show a warning the first time; [docs/releasing.md](docs/releasing.md) has the clicks. `install.sh` still builds from source and signs with a certificate it creates in your login keychain, so macOS keeps the app's permissions across updates.
 
 ## How it works
 
@@ -260,7 +264,7 @@ It ties the base model on synthetic clips and is slightly behind on my voice ove
 
 ## Roadmap
 
-- **Signed DMG and Homebrew install**, so trying Umless doesn't need a Rust build.
+- **Signed, notarised downloads and a Homebrew install**, so the first-open warnings go away.
 - **Screen reading on Windows and Linux** (UI Automation, AT-SPI), so names, tone and command-mode context work there too, and packaged installers (MSI, .deb / Flatpak). See [docs/cross-platform.md](docs/cross-platform.md).
 - **GPU Whisper for Max** (whisper.cpp on Metal or a Core ML encoder), to cut Max's CPU-bound floor.
 - **Voice commands** beyond command mode: "new line", "delete that", "send".
