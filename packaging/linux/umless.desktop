@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Umless
+Comment=Local voice dictation: hold a key, speak, and the text is typed
+Exec=umless
+Icon=umless
+Terminal=false
+Categories=Utility;Accessibility;

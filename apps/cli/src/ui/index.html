@@ -108,6 +108,16 @@
   .progress div { height: 100%; background: var(--accent); transition: width .3s; }
   textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; min-height: 64px; resize: vertical; outline: none; margin-top: 10px; -webkit-user-select: text; }
   textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .tiers { display: flex; flex-direction: column; gap: 10px; }
+  .tier { display: flex; gap: 14px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .tier.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .tier .radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); flex: none; margin-top: 2px; }
+  .tier.on .radio { border: 5px solid var(--accent); }
+  .tier .what { flex: 1; }
+  .tier .title { font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .tier .why { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .tier .size { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; flex: none; }
+  .dl { margin-top: 18px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .toast.show { opacity: .92; }
   @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
@@ -156,7 +166,7 @@ window.umless = {
     dot.className = 'dot' + (name === 'error' ? ' bad' : /Listening|Writing|Loading/.test(status) ? ' busy' : '');
     document.getElementById('status').textContent = status === 'Ready' ? `Ready · hold ${mac() ? 'Fn' : K.hold} to dictate` : status;
     if (name === 'typed' && (page === 'home' || page === 'history')) show(page);
-    if (name === 'setup' && page !== 'setup') show('setup');
+    if (name === 'setup' && page !== 'setup' && page !== 'models') show('setup');
   },
 };
 
@@ -211,10 +221,72 @@ function entryRow(e, { actions = true } = {}) {
   return row;
 }
 
-let setupTimer = null, triedIt = false;
+let setupTimer = null, triedIt = false, modelsTimer = null, pickedTier = null;
+const fmtMB = mb => mb >= 1000 ? `${(mb / 1000).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+const cap = s => s[0].toUpperCase() + s.slice(1);
 const pages = {
+  // First run (no models yet) and Settings' "not downloaded" tiers: pick a tier, download it.
+  async models() {
+    const m = await umless.call('models');
+    const d = m.download;
+    const first = !m.tiers.some(t => t.installed);
+    const where = mac() ? 'Mac' : 'computer';
+    if (!pickedTier || m.tiers.find(t => t.name === pickedTier)?.installed) {
+      pickedTier = (m.tiers.find(t => t.name === m.recommended && !t.installed) || m.tiers.find(t => !t.installed) || {}).name;
+    }
+    const running = d.state === 'running';
+    const list = $('div', { class: 'tiers' });
+    for (const t of m.tiers) {
+      const chosen = running ? d.tier === t.name : pickedTier === t.name;
+      const card = $('div', { class: 'tier' + (chosen ? ' on' : '') },
+        $('div', { class: 'radio' }),
+        $('div', { class: 'what' },
+          $('div', { class: 'title' }, cap(t.name),
+            t.name === m.recommended ? $('span', { class: 'tag' }, 'Suggested for this ' + where) : null,
+            t.installed ? $('span', { class: 'ok' }, 'Downloaded') : null),
+          $('div', { class: 'why' }, t.blurb),
+          $('div', { class: 'why' }, `${t.speech} + ${t.cleanup}`)),
+        $('div', { class: 'size' }, t.installed ? '' : fmtMB(t.missing_mb || t.download_mb)));
+      if (!t.installed && !running) card.addEventListener('click', () => { pickedTier = t.name; show('models'); });
+      list.append(card);
+    }
+    const bar = $('div', { class: 'dl' });
+    if (running) {
+      const pct = d.total ? Math.min(100, 100 * d.done / d.total) : 0;
+      bar.append($('div', { style: 'flex:1;min-width:240px' },
+        $('div', { class: 'progress', style: 'margin:0 0 6px' }, $('div', { style: `width:${pct.toFixed(1)}%` })),
+        $('div', { class: 'note', style: 'margin:0' },
+          `Downloading ${cap(d.tier)}: ${fmtMB(d.done / 1e6)} of ${fmtMB(d.total / 1e6)}` +
+          (d.files ? ` · file ${d.index} of ${d.files}` : ''))),
+        $('button', { class: 'btn', onclick: () => umless.call('cancel_install').then(() => show('models')) }, 'Cancel'));
+    } else if (d.state === 'done') {
+      bar.append($('span', { class: 'ok' }, `${cap(d.tier)} is downloaded. Starting Umless…`));
+      setTimeout(() => umless.call('restart'), 800);
+    } else if (pickedTier) {
+      const t = m.tiers.find(x => x.name === pickedTier);
+      bar.append($('button', { class: 'btn primary', onclick: async () => {
+        try { await umless.call('install_tier', { tier: pickedTier }); } catch (err) { toast(err.message); }
+        show('models');
+      } }, `Download ${cap(pickedTier)} (${fmtMB(t.missing_mb || t.download_mb)})`));
+      if (d.state === 'failed') bar.append($('span', { class: 'no' }, 'The download stopped: ' + d.error + '. Check your connection and try again; finished files are kept.'));
+      if (d.state === 'cancelled') bar.append($('span', { class: 'note', style: 'margin:0' }, 'Cancelled.'));
+    }
+    clearTimeout(modelsTimer);
+    if (running) modelsTimer = setTimeout(() => { if (page === 'models') show('models'); }, 500);
+    document.getElementById('nav-setup').hidden = false;
+    return [
+      $('h1', {}, first ? 'Welcome to Umless' : 'Download a model'),
+      $('p', { class: 'sub' }, (first ? `Umless turns your speech into text right here on this ${where}. It needs one speech model, downloaded once; nothing you say ever leaves this ${where}. ` : '') +
+        `This ${where} has ${m.ram_gb} GB of memory, so ${cap(m.recommended)} is the one to start with. You can add another later in Settings.`),
+      list,
+      bar,
+      $('p', { class: 'note' }, 'Models are saved in ' + m.dir),
+    ];
+  },
+
   async setup() {
     const s = await umless.call('setup');
+    if (!s.models_ready) { page = 'models'; return pages.models(); }
     const fnOk = s.fn_key === 'nothing';
     const steps = [
       { done: s.mic === 'granted', title: 'Microphone', why: `So Umless can hear you while you hold ${K.hold}.`,
@@ -363,6 +435,7 @@ const pages = {
         t.name[0].toUpperCase() + t.name.slice(1) + (t.installed ? '' : ' ↓'));
       b.addEventListener('click', async () => {
         if (t.current) return;
+        if (!t.installed) { pickedTier = t.name; show('models'); return; }
         try { toast(`Switching to ${t.name}…`); await umless.call('set_tier', { tier: t.name }); }
         catch (err) { toast(err.message); }
       });
@@ -414,7 +487,7 @@ const pages = {
         $('div', { class: 'card' }, $('h3', {}, 'Models'), tierSeg, $('div', { class: 'kv', style: 'margin-top:12px' },
           $('div', { class: 'k' }, 'Speech'), $('div', {}, s.speech),
           $('div', { class: 'k' }, 'Cleanup'), $('div', {}, s.cleanup)),
-          $('p', { class: 'note' }, 'Lite is fastest and smallest, Max most accurate. Switching restarts Umless. Tiers marked ↓ aren\'t downloaded: run ./install.sh <tier> in the Umless folder.')),
+          $('p', { class: 'note' }, 'Lite is fastest and smallest, Max most accurate. Switching restarts Umless. Tiers marked ↓ aren\'t downloaded yet: click one to download it.')),
         $('div', { class: 'card' }, $('h3', {}, 'Permissions'), $('div', { class: 'kv' },
           $('div', { class: 'k' }, 'Input Monitoring'), yes(s.input_monitoring),
           $('div', { class: 'k' }, 'Accessibility'), yes(s.accessibility)),
@@ -438,10 +511,11 @@ document.querySelectorAll('nav button').forEach(b => b.addEventListener('click',
 // Open on Setup until everything is allowed.
 umless.call('setup').then(s => {
   K = { os: s.os || 'macos', hold: s.hold_key || 'fn', cmd: s.command_key || 'control' };
-  document.getElementById('status').textContent = `Ready · hold ${mac() ? 'Fn' : K.hold} to dictate`;
-  const pending = !s.done || s.fn_key !== 'nothing';
+  document.getElementById('status').textContent = s.models_ready ? `Ready · hold ${mac() ? 'Fn' : K.hold} to dictate` : 'Waiting for a model download';
+  if (!s.models_ready) document.getElementById('dot').className = 'dot busy';
+  const pending = !s.done || s.fn_key !== 'nothing' || !s.models_ready;
   document.getElementById('nav-setup').hidden = !pending;
-  show(pending ? 'setup' : 'home');
+  show(!s.models_ready ? 'models' : pending ? 'setup' : 'home');
 }).catch(() => show('home'));
 </script>
 </body>

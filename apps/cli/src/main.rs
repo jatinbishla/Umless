@@ -2,6 +2,7 @@
 
 mod app;
 mod bench;
+mod download;
 mod history;
 mod hub;
 mod learn;
@@ -39,8 +40,12 @@ struct Cli {
 
 #[derive(Args, Clone)]
 pub(crate) struct Common {
-    /// Directory for downloaded models (`umless models install` fills it).
-    #[arg(long, env = "UMLESS_MODELS", default_value = "models", global = true)]
+    /// Directory for downloaded models (`umless models install` fills it). Default: ./models
+    /// in a source checkout, otherwise the per-user data folder (…/Umless/models).
+    #[arg(long = "models", env = "UMLESS_MODELS", global = true, value_name = "MODELS")]
+    models_arg: Option<PathBuf>,
+    /// `--models`, or the default folder: filled in by `main` after parsing.
+    #[arg(skip)]
     pub(crate) models: PathBuf,
     /// Model tier: lite, standard or max.
     #[arg(long, env = "UMLESS_TIER", default_value = "standard", global = true)]
@@ -202,7 +207,17 @@ fn main() -> Result<()> {
         app::log_to_file();
     }
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    cli.common.models = match &cli.common.models_arg {
+        Some(dir) => dir.clone(),
+        None => paths::default_models_dir(),
+    };
+    // A restarted Umless and its login item get the same folder, whatever their working
+    // directory (umless-shell's login command reads UMLESS_MODELS).
+    if let Ok(abs) = std::path::absolute(&cli.common.models) {
+        // SAFETY: no other threads exist yet.
+        unsafe { std::env::set_var("UMLESS_MODELS", abs) };
+    }
     let cmd = match &cli.cmd {
         Some(cmd) => cmd,
         // Double-clicked Umless.app: macOS starts the binary with no arguments.

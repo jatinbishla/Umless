@@ -1,0 +1,160 @@
+# Builds the three downloads and attaches them to a draft GitHub Release:
+#   Umless-mac-arm64.dmg, Umless-windows-x64-setup.exe, Umless-linux-x86_64.AppImage
+# (the website links to releases/latest/download/<name>, so keep these names).
+# Push a tag (git tag v0.2.0 && git push origin v0.2.0), check the draft, then publish it.
+# Run by hand (workflow_dispatch) it builds the files as workflow artifacts only.
+# See docs/releasing.md.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.file }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            file: Umless-mac-arm64.dmg
+          - os: windows-latest
+            file: Umless-windows-x64-setup.exe
+          - os: ubuntu-latest
+            file: Umless-linux-x86_64.AppImage
+    runs-on: ${{ matrix.os }}
+    env:
+      # Optional signing (docs/releasing.md). Unset secrets leave the builds ad hoc / unsigned.
+      MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+      MACOS_SIGN_P12_PASSWORD: ${{ secrets.MACOS_SIGN_P12_PASSWORD }}
+      UMLESS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY || '-' }}
+      WINDOWS_SIGN_PFX: ${{ secrets.WINDOWS_SIGN_PFX }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake clang libclang-dev pkg-config libasound2-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # sherpa-onnx downloads its prebuilt libraries into target/sherpa-onnx-prebuilt. The
+      # cache restores that folder without the library files, and the build script trusts
+      # any folder it finds: drop both and let it download again (~30-100 MB).
+      - name: Refresh sherpa-onnx libraries
+        shell: bash
+        run: |
+          rm -rf target/sherpa-onnx-prebuilt
+          cargo clean --release -p sherpa-onnx-sys
+
+      - name: Version matches tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          v="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "Cargo.toml says $v but the tag is $GITHUB_REF_NAME" >&2; exit 1; }
+
+      # ---- macOS ----
+      - name: Signing certificate (macOS, optional)
+        if: runner.os == 'macOS' && env.MACOS_SIGN_P12 != ''
+        run: |
+          KC="$RUNNER_TEMP/umless-sign.keychain-db"
+          security create-keychain -p "" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "" "$KC"
+          echo "$MACOS_SIGN_P12" | base64 --decode > "$RUNNER_TEMP/sign.p12"
+          security import "$RUNNER_TEMP/sign.p12" -k "$KC" -P "$MACOS_SIGN_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/sign.p12"
+
+      - name: Build the dmg
+        if: runner.os == 'macOS'
+        run: scripts/make-dmg.sh
+
+      # ---- Windows ----
+      - name: Inno Setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+
+      - name: Signing certificate (Windows, optional)
+        if: runner.os == 'Windows' && env.WINDOWS_SIGN_PFX != ''
+        shell: pwsh
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'sign.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_SIGN_PFX))
+          "UMLESS_SIGN_PFX=$pfx" | Out-File -Append $env:GITHUB_ENV
+
+      - name: Build the installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          UMLESS_SIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}
+        run: ./scripts/make-windows-installer.ps1
+
+      # ---- Linux ----
+      - name: Build the AppImage
+        if: runner.os == 'Linux'
+        run: scripts/make-appimage.sh
+
+      # ---- all ----
+      - name: Smoke test
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            macOS)   hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/dmg" dist/release/${{ matrix.file }}
+                     "$RUNNER_TEMP/dmg/Umless.app/Contents/MacOS/Umless" --version
+                     codesign --verify --strict "$RUNNER_TEMP/dmg/Umless.app"
+                     hdiutil detach "$RUNNER_TEMP/dmg" ;;
+            Windows) dist/release/windows/umless.exe --version ;;
+            Linux)   APPIMAGE_EXTRACT_AND_RUN=1 dist/release/${{ matrix.file }} --version ;;
+          esac
+          ls -l dist/release/${{ matrix.file }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.file }}
+          path: dist/release/${{ matrix.file }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l files
+          cd files
+          sha256sum Umless-* > SHA256SUMS.txt
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" Umless-* SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" Umless-* SHA256SUMS.txt --draft --generate-notes \
+              --title "Umless ${GITHUB_REF_NAME#v}" --repo "$GITHUB_REPOSITORY"
+          fi

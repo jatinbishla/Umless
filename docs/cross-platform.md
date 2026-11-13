@@ -28,6 +28,7 @@ public API on every platform, so `apps/cli` has almost no `cfg`s:
 | Launch at login | SMAppService | `HKCU\…\Run` | `~/.config/autostart/umless.desktop` |
 | Learning from corrections | ✅ | ❌ (needs field text) | ❌ (needs field text) |
 | Installer | `install.sh` → Umless.app | `install.ps1` → `%LOCALAPPDATA%\Programs\Umless` + Start menu | `install.sh` → `~/.local/bin/umless` + app menu |
+| Download (no build; models on first run) | `Umless-mac-arm64.dmg` | `Umless-windows-x64-setup.exe` (Inno Setup, per user) | `Umless-linux-x86_64.AppImage` |
 
 "CI" means GitHub Actions builds and runs it on that OS (`ci.yml`: build, unit tests,
 headless check, installer syntax, CLI smoke test; `tiers.yml`: downloads Lite, Standard and
@@ -107,7 +108,8 @@ run by hand on a real desktop:
   with `free(): invalid pointer` once both models load. So on Windows and Linux it's the
   `shared` feature (`umless-asr` / `umless-audio` target sections). Its build script copies the
   DLLs / `.so` files into `target/release` and sets an `$ORIGIN` rpath on Linux; `install.ps1`
-  and `install.sh` install them next to the binary.
+  and `install.sh` install them next to the binary, as do the release packages
+  ([releasing.md](releasing.md)).
 - Linux: the desktop app needs `libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev`
   (and `libasound2-dev`, `clang`, `cmake` for the core). `--no-default-features` drops the GUI.
 - GitHub retired the `macos-14` runners; CI uses `macos-15`.

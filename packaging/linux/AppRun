@@ -1,0 +1,15 @@
+#!/bin/sh
+# AppImage entry point. umless and its speech libraries (sherpa-onnx, onnxruntime) sit
+# together in usr/lib/umless, where the binary's $ORIGIN rpath finds them. Opened with no
+# arguments (double-clicked), it starts the app with its window, like Umless.app.
+HERE="$(dirname "$(readlink -f "$0")")"
+# Belt and braces for libraries that look each other up (sherpa-onnx -> onnxruntime).
+export LD_LIBRARY_PATH="$HERE/usr/lib/umless${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+[ $# -eq 0 ] && set -- app --window
+# Started from the desktop there's no terminal: keep what Umless prints in its log file
+# (Settings -> Open log), as Umless.app does on macOS.
+if [ ! -t 2 ]; then
+  LOG="${XDG_STATE_HOME:-$HOME/.local/state}/umless"
+  mkdir -p "$LOG" && exec 2>>"$LOG/umless.log"
+fi
+exec "$HERE/usr/lib/umless/umless" "$@"

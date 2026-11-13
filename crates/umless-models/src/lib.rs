@@ -8,7 +8,7 @@
 
 mod install;
 
-pub use install::{Artifact, install};
+pub use install::{Artifact, Progress, install, install_with, missing};
 
 use std::fmt;
 use std::path::{Path, PathBuf};

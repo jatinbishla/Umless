@@ -519,7 +519,11 @@ pub fn launch_at_login() -> bool {
 /// The command a login item runs: this binary with the models folder and tier spelled
 /// out, since a process started at login has no useful working directory or environment.
 fn login_command() -> anyhow::Result<String> {
-    let exe = std::env::current_exe()?;
+    // Inside an AppImage the binary runs from a temporary mount: start the AppImage itself.
+    let exe = match std::env::var_os("APPIMAGE") {
+        Some(appimage) => std::path::PathBuf::from(appimage),
+        None => std::env::current_exe()?,
+    };
     let models = std::env::var_os("UMLESS_MODELS")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::PathBuf::from("models"));

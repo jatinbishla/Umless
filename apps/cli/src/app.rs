@@ -138,6 +138,11 @@ pub fn run(c: &Common, device: Option<&str>, open_window: bool) -> Result<()> {
     // A tier picked in the window wins over the one the app was built with, if installed.
     if let Some(tier) = settings.tier().filter(|t| t.is_installed(&c.models)) {
         c.tier = tier;
+    } else if !c.tier.asr_path(&c.models).is_dir()
+        && let Some(tier) = installed_tier(&c.models)
+    {
+        // The default tier isn't downloaded but another is (e.g. only Lite): use that.
+        c.tier = tier;
     }
     let dict_path = c.dictionary.clone().unwrap_or_else(default_dictionary);
     if !dict_path.exists() {
@@ -155,6 +160,7 @@ pub fn run(c: &Common, device: Option<&str>, open_window: bool) -> Result<()> {
         tier: c.tier,
         models: c.models.clone(),
         settings: settings.clone(),
+        downloads: Default::default(),
     };
     let config = umless_shell::Config {
         dictionary: dict_path,
@@ -166,11 +172,35 @@ pub fn run(c: &Common, device: Option<&str>, open_window: bool) -> Result<()> {
         hold_key: umless_hotkey::hold_key_label(),
     };
     umless_shell::run(config, move |ui| {
+        let mut c = c;
+        if !c.tier.asr_path(&c.models).is_dir() && installed_tier(&c.models).is_none() {
+            // First run of a downloaded Umless: the window asks which tier to download.
+            ui.set(State::Setup);
+            eprintln!(
+                "· no models in {} yet: pick a tier in the Umless window",
+                c.models.display()
+            );
+            c.tier = loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                if let Some(t) = settings.tier().filter(|t| t.is_installed(&c.models)) {
+                    break t;
+                }
+                if let Some(t) = installed_tier(&c.models) {
+                    break t;
+                }
+            };
+            ui.set(State::Loading);
+        }
         if let Err(e) = dictate_loop(&c, device.as_deref(), &settings, &ui) {
             eprintln!("Error: {e:#}");
             ui.set(State::Error(format!("{e:#}")));
         }
     })
+}
+
+/// The first fully downloaded tier, if any.
+fn installed_tier(models: &Path) -> Option<Tier> {
+    Tier::ALL.into_iter().find(|t| t.is_installed(models))
 }
 
 /// The style for this dictation: the user's fixed choice, or the one the focused app calls

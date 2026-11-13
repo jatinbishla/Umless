@@ -22,6 +22,7 @@ pub struct Hub {
     pub tier: Tier,
     pub models: PathBuf,
     pub settings: Settings,
+    pub downloads: crate::download::Downloads,
 }
 
 #[derive(Deserialize)]
@@ -119,7 +120,40 @@ impl Hub {
                 self.settings.set_style(style)?;
                 json!(true)
             }
-            "setup" => setup_status(),
+            "setup" => {
+                let mut s = setup_status();
+                s["models_ready"] = json!(Tier::ALL.iter().any(|t| t.is_installed(&self.models)));
+                s
+            }
+            // The first-run model picker: tiers, sizes, the suggestion and any download.
+            "models" => {
+                let ram = crate::download::ram_gb();
+                json!({
+                    "dir": self.models.display().to_string(),
+                    "ram_gb": ram.round(),
+                    "recommended": Tier::recommended(ram.round()).name(),
+                    "tiers": Tier::ALL.iter().map(|&t| json!({
+                        "name": t.name(),
+                        "blurb": crate::download::blurb(t),
+                        "speech": t.asr_label(),
+                        "cleanup": t.llm_label_in(&self.models),
+                        "download_mb": t.download_mb(),
+                        "missing_mb": umless_models::missing(&self.models, &[t]).1,
+                        "installed": t.is_installed(&self.models),
+                    })).collect::<Vec<_>>(),
+                    "download": self.downloads.status(),
+                })
+            }
+            "install_tier" => {
+                let tier: Tier = arg_str(args, "tier")?.parse()?;
+                self.downloads
+                    .start(self.models.clone(), tier, self.settings.clone())?;
+                json!(true)
+            }
+            "cancel_install" => {
+                self.downloads.cancel();
+                json!(true)
+            }
             "tiers" => json!(
                 Tier::ALL
                     .iter()
@@ -135,9 +169,7 @@ impl Hub {
             "set_tier" => {
                 let tier: Tier = arg_str(args, "tier")?.parse()?;
                 if !tier.is_installed(&self.models) {
-                    bail!(
-                        "{tier} isn't downloaded yet. Run ./install.sh {tier} in the Umless folder."
-                    );
+                    bail!("{tier} isn't downloaded yet. Download it first.");
                 }
                 self.settings.set_tier(tier)?;
                 restart();
@@ -319,8 +351,13 @@ fn restart() {
         std::process::exit(0);
     }
     // Not a macOS bundle (Windows, Linux, or a terminal build): start the same binary again.
+    // An AppImage runs from a mount that goes away when this process exits: start the
+    // AppImage file instead.
     #[cfg(not(target_os = "macos"))]
-    if let Ok(exe) = std::env::current_exe() {
+    if let Some(exe) = std::env::var_os("APPIMAGE")
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_exe().ok())
+    {
         let _ = std::process::Command::new(exe)
             .args(std::env::args_os().skip(1))
             .spawn();
