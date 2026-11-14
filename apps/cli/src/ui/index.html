@@ -5,132 +5,189 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Umless</title>
 <style>
+/*FONTS*/
+  /* Umless's brand (umless-site global.css): warm paper, ink, one red pen. The dark column is
+     the app's own, warm rather than grey-blue. --pen draws marks; --pen-ink is the same red a
+     shade deeper wherever it carries text, so text on it and in it passes WCAG AA. */
   :root {
-    --bg: #f6f6f4; --panel: #ffffff; --side: #efeeeb; --text: #1c1c1e; --muted: #6e6e73;
-    --line: #e4e3df; --accent: #4f46e5; --accent-soft: #eceafd; --ok: #1f9d55; --bad: #d23c3c;
-    --hover: #f1f0ed;
+    --paper: #F7F3EA; --paper-2: #EFE9DC; --panel: #FBF8F1; --ink: #1B1915; --ink-2: #5D574C;
+    --rule: #D9D1C0; --pen: #D8412B; --pen-ink: #BF3720; --on-pen: #F7F3EA; --ok: #2A7148;
+    --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #1b1b1d; --panel: #232326; --side: #18181a; --text: #ececee; --muted: #9a9aa2;
-      --line: #2f2f33; --accent: #8b85ff; --accent-soft: #2b2944; --ok: #3ccf7e; --bad: #ff6b6b;
-      --hover: #2a2a2e;
+      --paper: #1B1915; --paper-2: #24211C; --panel: #2B2822; --ink: #F2EDE2; --ink-2: #A69F91;
+      --rule: #3A362E; --pen: #E8573F; --pen-ink: #EE6A53; --on-pen: #1B1915; --ok: #5DBB85;
+      color-scheme: dark;
     }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
-    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-    background: var(--bg); color: var(--text); display: flex; -webkit-user-select: none;
+    font: 14.5px/1.5 var(--sans); background: var(--paper); color: var(--ink); display: flex;
+    -webkit-user-select: none; -webkit-font-smoothing: antialiased;
   }
-  nav {
-    width: 220px; flex: none; background: var(--side); border-right: 1px solid var(--line);
-    display: flex; flex-direction: column; padding: 18px 12px;
-  }
-  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 22px; font-weight: 650; font-size: 16px; }
-  .brand svg { color: var(--accent); }
+  p, h1, h2, h3 { margin: 0; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+
+  /* ---- sidebar ---- */
+  nav { width: 212px; flex: none; background: var(--paper-2); border-right: 1px solid var(--rule); display: flex; flex-direction: column; padding: 22px 14px 14px; }
+  .brand { padding: 2px 10px 26px; color: var(--ink); }
+  .brand .wordmark { height: 27px; width: auto; display: block; }
   nav button {
-    all: unset; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
-    color: var(--muted); cursor: default; font-weight: 500;
+    all: unset; position: relative; display: flex; align-items: center; padding: 7px 10px 7px 30px; margin: 1px 0;
+    border-radius: 8px; color: var(--ink-2); font-weight: 500; cursor: default;
   }
-  nav button:hover { background: var(--hover); color: var(--text); }
-  nav button.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  nav button:hover { color: var(--ink); }
+  nav button:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  nav button .mark { position: absolute; left: 8px; top: 50%; width: 16px; height: 10px; margin-top: -6px; overflow: visible; opacity: 0; }
+  nav button .mark path { fill: none; stroke: var(--pen); stroke-width: 2.4; stroke-linecap: round; }
+  nav button.on { color: var(--ink); font-weight: 600; }
+  nav button.on .mark { opacity: 1; }
   nav .grow { flex: 1; }
-  .status { display: flex; align-items: center; gap: 8px; padding: 10px; font-size: 12px; color: var(--muted); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
-  .dot.busy { background: var(--accent); }
-  .dot.bad { background: var(--bad); }
-  main { flex: 1; overflow-y: auto; padding: 34px 44px 60px; }
-  h1 { font-size: 24px; margin: 0 0 4px; font-weight: 650; letter-spacing: -.01em; }
-  .sub { color: var(--muted); margin: 0 0 26px; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 30px 0 10px; font-weight: 600; }
-  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
-  .stat .n { font-size: 26px; font-weight: 650; letter-spacing: -.02em; }
-  .stat .l { color: var(--muted); font-size: 12px; margin-top: 2px; }
-  .list { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-  .row { display: flex; gap: 16px; padding: 12px 16px; border-top: 1px solid var(--line); position: relative; }
-  .row:first-child { border-top: 0; }
-  .row:hover { background: var(--hover); }
-  .time { color: var(--muted); font-size: 12px; width: 52px; flex: none; padding-top: 1px; font-variant-numeric: tabular-nums; }
-  .body { flex: 1; min-width: 0; }
-  .text { -webkit-user-select: text; white-space: pre-wrap; word-wrap: break-word; }
-  .meta { color: var(--muted); font-size: 12px; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .heard { color: var(--muted); font-size: 12.5px; margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--line); -webkit-user-select: text; }
-  .tag { background: var(--accent-soft); color: var(--accent); border-radius: 5px; padding: 0 6px; font-size: 11.5px; font-weight: 600; }
-  .actions { display: flex; gap: 4px; opacity: 0; transition: opacity .12s; align-self: flex-start; }
-  .row:hover .actions { opacity: 1; }
+  .status { display: flex; align-items: center; gap: 8px; padding: 10px; font-size: 12.5px; color: var(--ink-2); border-top: 1px solid var(--rule); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: none; }
+  .dot.busy { background: var(--ink-2); animation: pulse 1.2s ease-in-out infinite; }
+  .dot.bad { background: var(--pen); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .dot.busy { animation: none; } }
+
+  /* ---- page ---- */
+  main { flex: 1; overflow-y: auto; padding: 48px 56px 64px; }
+  .page { max-width: 860px; }
+  h1 { font-family: var(--serif); font-optical-sizing: auto; font-weight: 480; font-size: 38px; line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 10px; }
+  .sub { color: var(--ink-2); margin-bottom: 34px; max-width: 40em; font-size: 15px; }
+  h2 { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; color: var(--ink-2); margin: 40px 0 8px; }
+  .note { color: var(--ink-2); font-size: 13px; margin-top: 12px; max-width: 46em; }
+  .mono { font-family: var(--mono); font-size: 13px; letter-spacing: -0.01em; }
+  a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: .25em; }
+  a:hover { text-decoration-color: var(--pen); }
+  .ok { color: var(--ok); font-weight: 600; } .no { color: var(--pen-ink); font-weight: 600; }
+  .empty { color: var(--ink-2); padding: 28px 0; }
+
+  /* buttons: main = solid pen, secondary = ink outline, quiet = text */
   .btn {
-    all: unset; padding: 5px 10px; border-radius: 7px; font-size: 12.5px; font-weight: 550;
-    background: var(--panel); border: 1px solid var(--line); color: var(--text); cursor: default;
+    all: unset; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px;
+    font-weight: 600; font-size: 13.5px; color: var(--ink); border: 1.5px solid var(--ink); cursor: default;
+    white-space: nowrap; transition: background-color .15s, color .15s;
   }
-  .btn:hover { border-color: var(--muted); }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .btn.danger { color: var(--bad); }
-  .day { font-size: 12px; font-weight: 600; color: var(--muted); margin: 22px 0 8px; }
-  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 4px; }
-  input[type=text], input[type=search] {
-    font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
-    border-radius: 8px; padding: 8px 12px; outline: none; -webkit-user-select: text; flex: 1;
+  .btn:hover { background: var(--ink); color: var(--paper); }
+  .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .btn.primary { background: var(--pen-ink); border-color: var(--pen-ink); color: var(--on-pen); }
+  .btn.primary:hover { filter: brightness(.93); }
+  .btn.big { padding: 11px 20px; font-size: 14.5px; }
+  .btn.quiet { border-color: transparent; color: var(--ink-2); padding: 7px 6px; font-weight: 500; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: .25em; }
+  .btn.quiet:hover { background: none; color: var(--ink); text-decoration-color: var(--pen); }
+  .btn.danger { color: var(--pen-ink); border-color: var(--pen-ink); }
+  .btn.danger:hover { background: var(--pen-ink); color: var(--on-pen); }
+
+  input[type=text], input[type=search], textarea {
+    font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 10px; padding: 9px 12px; outline: none; -webkit-user-select: text;
   }
-  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-  .chip { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px 5px 12px; }
-  .chip button { all: unset; width: 18px; height: 18px; border-radius: 50%; text-align: center; line-height: 17px; color: var(--muted); }
-  .chip button:hover { background: var(--hover); color: var(--bad); }
-  .empty { color: var(--muted); padding: 36px 16px; text-align: center; }
-  .kv { display: grid; grid-template-columns: 180px 1fr; gap: 10px 16px; align-items: center; }
-  .kv .k { color: var(--muted); }
-  kbd { font: 12px ui-monospace, monospace; background: var(--hover); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; }
-  .ok { color: var(--ok); font-weight: 600; } .no { color: var(--bad); font-weight: 600; }
-  .seg { display: inline-flex; background: var(--hover); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 2px; flex-wrap: wrap; }
-  .seg button { all: unset; padding: 5px 12px; border-radius: 7px; font-size: 13px; font-weight: 550; color: var(--muted); }
-  .seg button.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-  .styles { margin-top: 12px; display: grid; grid-template-columns: 110px 1fr; gap: 6px 14px; font-size: 13px; }
-  .styles .k { font-weight: 600; }
-  .switch { position: relative; width: 36px; height: 20px; background: var(--line); border-radius: 999px; transition: background .15s; }
-  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
-  .switch.on { background: var(--accent); } .switch.on::after { left: 18px; }
-  .stack > .card + .card { margin-top: 12px; }
-  .card h3 { margin: 0 0 12px; font-size: 14px; }
-  .note { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
-  .steps { display: flex; flex-direction: column; gap: 10px; }
-  .step { display: flex; gap: 14px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
-  .step.done { opacity: .72; }
-  .badge { width: 26px; height: 26px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--hover); color: var(--muted); }
-  .step.done .badge { background: var(--ok); color: #fff; }
+  input[type=text], input[type=search] { flex: 1; }
+  input:focus, textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent); }
+  textarea { width: 100%; min-height: 64px; resize: vertical; margin-top: 12px; }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+
+  /* lists separated by hairlines instead of boxes */
+  .rows { border-top: 1px solid var(--rule); }
+  .row { display: flex; gap: 18px; padding: 14px 2px; border-bottom: 1px solid var(--rule); position: relative; }
+  .time { color: var(--ink-2); font-size: 12.5px; width: 56px; flex: none; padding-top: 2px; font-variant-numeric: tabular-nums; }
+  .body { flex: 1; min-width: 0; }
+  .typed { -webkit-user-select: text; white-space: pre-wrap; word-wrap: break-word; font-size: 15px; }
+  .said { -webkit-user-select: text; color: var(--ink-2); margin-top: 6px; line-height: 1.7; }
+  .said s { text-decoration: none; position: relative; color: var(--ink-2); }
+  .said s::after { content: ''; position: absolute; left: -2px; right: -2px; top: 52%; height: 2px; background: var(--pen); border-radius: 2px; transform: rotate(-2deg); }
+  .meta { color: var(--ink-2); font-size: 12px; margin-top: 6px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .tag { color: var(--pen-ink); font-weight: 600; }
+  .actions { display: flex; gap: 4px; opacity: 0; transition: opacity .12s; align-self: flex-start; }
+  .row:hover .actions, .row:focus-within .actions { opacity: 1; }
+  .day { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; color: var(--ink-2); margin: 30px 0 4px; }
+
+  /* home stats: four numbers between hairlines */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .stat { padding: 18px 16px 16px 0; }
+  .stat + .stat { padding-left: 18px; border-left: 1px solid var(--rule); }
+  .stat .n { white-space: nowrap; font-family: var(--serif); font-optical-sizing: auto; font-weight: 480; font-size: 30px; line-height: 1.1; letter-spacing: -0.02em; }
+  .stat .l { color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+  kbd { font: 12px var(--mono); background: var(--panel); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--ink); }
+
+  /* dictionary */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip { display: flex; align-items: center; gap: 4px; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 999px; padding: 4px 4px 4px 12px; }
+  .chip button { all: unset; width: 20px; height: 20px; border-radius: 50%; text-align: center; line-height: 19px; color: var(--ink-2); }
+  .chip button:hover, .chip button:focus-visible { background: var(--panel); color: var(--pen-ink); }
+
+  /* settings */
+  .section { border-top: 1px solid var(--rule); padding: 18px 0 22px; }
+  .section h3 { font-family: var(--serif); font-optical-sizing: auto; font-weight: 500; font-size: 20px; letter-spacing: -0.01em; margin-bottom: 14px; }
+  .kv { display: grid; grid-template-columns: 200px 1fr; gap: 12px 18px; align-items: center; }
+  .kv .k { color: var(--ink-2); }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 10px; padding: 2px; gap: 2px; flex-wrap: wrap; background: var(--paper-2); }
+  .seg button { all: unset; padding: 5px 12px; border-radius: 8px; font-size: 13px; font-weight: 550; color: var(--ink-2); }
+  .seg button:hover { color: var(--ink); }
+  .seg button:focus-visible { outline: 2px solid var(--ink); }
+  .seg button.on { background: var(--ink); color: var(--paper); }
+  .styles { margin-top: 14px; display: grid; grid-template-columns: 110px 1fr; gap: 6px 14px; font-size: 13.5px; color: var(--ink-2); }
+  .styles .k { font-weight: 600; color: var(--ink); }
+  .switch { all: unset; position: relative; width: 36px; height: 20px; background: var(--rule); border-radius: 999px; transition: background .15s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--panel); transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .switch.on { background: var(--pen-ink); } .switch.on::after { left: 18px; background: #fff; }
+  .switch:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  /* setup: numbered like the website's download steps */
+  .steps { counter-reset: none; border-top: 1px solid var(--rule); }
+  .step { display: flex; gap: 16px; align-items: flex-start; padding: 18px 2px; border-bottom: 1px solid var(--rule); }
+  .num { width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 600; font-size: 13.5px; background: var(--ink); color: var(--paper); }
+  .num.tick { background: none; }
+  .num.tick svg { width: 24px; height: 24px; overflow: visible; }
+  .num.tick path { fill: none; stroke: var(--pen); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+  .step.done .title { color: var(--ink-2); }
   .step .what { flex: 1; }
-  .step .title { font-weight: 600; }
-  .step .why { color: var(--muted); font-size: 13px; margin-top: 2px; }
-  .step .more { font-size: 12.5px; color: var(--muted); margin-top: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .step .title { font-weight: 600; font-size: 15px; }
+  .step .why { color: var(--ink-2); margin-top: 2px; }
+  .step .more { font-size: 13px; color: var(--ink-2); margin-top: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .step .side { display: flex; gap: 6px; flex: none; align-self: center; }
-  .progress { height: 6px; background: var(--hover); border-radius: 99px; overflow: hidden; margin: 0 0 22px; }
-  .progress div { height: 100%; background: var(--accent); transition: width .3s; }
-  textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; min-height: 64px; resize: vertical; outline: none; margin-top: 10px; -webkit-user-select: text; }
-  textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .tiers { display: flex; flex-direction: column; gap: 10px; }
-  .tier { display: flex; gap: 14px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
-  .tier.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .tier .radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); flex: none; margin-top: 2px; }
-  .tier.on .radio { border: 5px solid var(--accent); }
-  .tier .what { flex: 1; }
-  .tier .title { font-weight: 600; display: flex; gap: 8px; align-items: center; }
-  .tier .why { color: var(--muted); font-size: 13px; margin-top: 2px; }
-  .tier .size { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; flex: none; }
-  .dl { margin-top: 18px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
-  .toast.show { opacity: .92; }
-  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* the hand-drawn progress bar: a slightly uneven top edge */
+  .bar { height: 9px; background: var(--paper-2); border-radius: 99px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--pen); transition: width .3s;
+    clip-path: polygon(0 22%, 6% 8%, 13% 18%, 21% 4%, 30% 16%, 38% 2%, 47% 14%, 55% 6%, 63% 18%, 71% 3%, 80% 15%, 88% 5%, 95% 16%, 100% 8%, 100% 100%, 0 100%); }
+  .setup-bar { margin: 0 0 26px; max-width: 420px; }
+
+  /* first run: pick your size */
+  .sizes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 54px; }
+  .size { position: relative; display: block; outline: none; padding: 22px 20px 20px; border: 1px solid var(--rule); border-radius: 14px; background: var(--paper); cursor: default; }
+  .size:hover { border-color: var(--ink-2); }
+  .size:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .size.on { background: var(--paper-2); border-color: var(--ink); }
+  .size.got, .size[aria-disabled=true] { cursor: default; }
+  .size[aria-disabled=true]:hover { border-color: var(--rule); } .size.on[aria-disabled=true]:hover { border-color: var(--ink); }
+  .size-name { font-family: var(--serif); font-optical-sizing: auto; font-weight: 480; font-size: 30px; line-height: 1; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 10px; }
+  .size-line { margin-top: 8px; color: var(--ink-2); min-height: 2.9em; }
+  /* label above value: the cards are narrow in a 980 px window */
+  .facts div { padding: 8px 0; border-top: 1px solid var(--rule); font-size: 13.5px; }
+  .facts dt { color: var(--ink-2); font-size: 12px; } .facts dd { margin: 1px 0 0; font-weight: 500; }
+  .facts { margin: 16px 0 0; }
+  .start-here { position: absolute; right: 10px; top: -40px; display: flex; align-items: flex-end; gap: 0; font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 18px; color: var(--pen-ink); transform: rotate(-4deg); pointer-events: none; }
+  .start-here svg { width: 34px; height: 34px; overflow: visible; transform: scaleX(-1) translateY(14px); }
+  .start-here path { fill: none; stroke: var(--pen); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .got-label { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--ok); }
+  .dl { margin-top: 26px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; min-height: 46px; }
+  .dl .progress-text { font-size: 13px; color: var(--ink-2); margin-top: 8px; font-variant-numeric: tabular-nums; }
+
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: .94; }
+  @media (max-width: 900px) { .stats { grid-template-columns: repeat(2, 1fr); } .sizes { grid-template-columns: 1fr; gap: 40px; } main { padding: 36px 32px; } }
 </style>
 </head>
 <body>
 <nav>
-  <div class="brand">
-    <svg width="22" height="22" viewBox="0 0 18 18" aria-hidden="true">
-      <g fill="currentColor"><rect x="1.3" y="1.5" width="2.4" height="15" rx="1.2"/><rect x="4.8" y="1.5" width="2.4" height="8" rx="1.2"/><rect x="8.3" y="1.5" width="2.4" height="12" rx="1.2"/><rect x="11.8" y="1.5" width="2.4" height="8" rx="1.2"/><rect x="15.3" y="1.5" width="2.4" height="15" rx="1.2"/></g>
-    </svg>
-    Umless
-  </div>
+  <div class="brand"><!--WORDMARK--></div>
   <button data-page="setup" id="nav-setup" hidden>Setup</button>
   <button data-page="home" class="on">Home</button>
   <button data-page="history">History</button>
@@ -140,7 +197,7 @@
   <div class="status"><span class="dot" id="dot"></span><span id="status">Ready · hold Fn to dictate</span></div>
 </nav>
 <main id="main"></main>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status"></div>
 <script>
 // The hold key and OS, from the backend ('setup'): Fn on macOS, Ctrl + Win (or the
 // configured key) on Windows and Linux.
@@ -170,6 +227,22 @@ window.umless = {
   },
 };
 
+// Hand-drawn pen marks, from the website's pen.ts (same seeds, same wobble).
+const SVGNS = 'http://www.w3.org/2000/svg';
+function penSvg(viewBox, d, cls) {
+  const s = document.createElementNS(SVGNS, 'svg');
+  s.setAttribute('viewBox', viewBox); s.setAttribute('aria-hidden', 'true');
+  if (cls) s.setAttribute('class', cls);
+  const p = document.createElementNS(SVGNS, 'path'); p.setAttribute('d', d); s.append(p);
+  return s;
+}
+const PEN = {
+  nav: 'M1 6.5 C1.7 6.4 3.5 6 5 5.8 C6.5 5.6 8.3 5.8 10 5.4 C11.7 5 14.2 3.9 15 3.6',
+  tick: 'M1.4 10 C2 10.4 3.5 11.2 4.5 12.2 C5.5 13.2 6.1 16.6 7.2 16 C8.3 15.5 9.6 11.3 11.2 9 C12.7 6.7 15.7 3.2 16.6 2',
+  arrow: 'M6 6 C7 8.7 8.7 17 12 22 C15.3 27 20.3 32.7 26 36 C31.7 39.3 42.7 41 46 42 M36 33 C37.8 34.5 47.2 39.2 47 42 C46.8 44.8 37 48.7 35 50',
+};
+document.querySelectorAll('nav button').forEach(b => b.prepend(penSvg('0 0 16 10', PEN.nav, 'mark')));
+
 const $ = (tag, props = {}, ...kids) => {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
@@ -187,7 +260,7 @@ let page = 'home';
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1600);
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1800);
 }
 const fmtNum = n => n >= 10000 ? (n / 1000).toFixed(1) + 'k' : n.toLocaleString();
 const fmtTime = ms => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -200,22 +273,41 @@ function dayLabel(ms) {
 }
 function fmtMinutes(m) { return m < 60 ? `${m} min` : `${(m / 60).toFixed(1)} h`; }
 
+// What was said, with the words the cleanup dropped struck in red: a word-level longest
+// common subsequence between the raw transcript and the typed text.
+function saidWithStrikes(raw, typed) {
+  const norm = w => w.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
+  const a = raw.split(/\s+/).filter(Boolean), b = typed.split(/\s+/).filter(Boolean).map(norm);
+  const an = a.map(norm);
+  const n = a.length, m = b.length;
+  if (!n || n * m > 250000) return [raw];
+  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    dp[i][j] = an[i] && an[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out = [];
+  let i = 0, j = 0;
+  while (i < n) {
+    if (j < m && an[i] && an[i] === b[j]) { out.push(a[i]); i++; j++; }
+    else if (j < m && dp[i][j + 1] >= dp[i + 1][j]) j++;
+    else { out.push($('s', {}, a[i])); i++; }
+  }
+  return out.flatMap((w, k) => k ? [' ', w] : [w]);
+}
+
 function entryRow(e, { actions = true } = {}) {
-  const heard = $('div', { class: 'heard' }, 'Heard: ' + e.raw);
-  heard.hidden = true;
   const meta = $('div', { class: 'meta' },
     e.app ? $('span', { class: 'tag' }, e.app) : null,
     e.mode === 'command' ? $('span', { class: 'tag' }, 'command') : null,
     e.style && e.style !== 'clean' ? $('span', { class: 'tag' }, STYLE_LABELS[e.style] || e.style) : null,
     $('span', {}, `${e.spoke_secs.toFixed(1)} s spoken`),
     $('span', {}, `${e.latency_ms} ms to type`));
+  const said = e.raw && e.raw !== e.text ? $('div', { class: 'said mono' }, saidWithStrikes(e.raw, e.text)) : null;
   const row = $('div', { class: 'row' },
     $('div', { class: 'time' }, fmtTime(e.at)),
-    $('div', { class: 'body' }, $('div', { class: 'text' }, e.text), meta, heard));
+    $('div', { class: 'body' }, $('div', { class: 'typed' }, e.text), said, meta));
   if (actions) {
     row.append($('div', { class: 'actions' },
       $('button', { class: 'btn', onclick: async () => { await umless.call('copy', { text: e.text }); toast('Copied'); } }, 'Copy'),
-      e.raw !== e.text ? $('button', { class: 'btn', onclick: () => { heard.hidden = !heard.hidden; } }, 'Heard') : null,
       $('button', { class: 'btn danger', onclick: async () => { await umless.call('delete', { at: e.at }); row.remove(); } }, 'Delete')));
   }
   return row;
@@ -235,53 +327,54 @@ const pages = {
       pickedTier = (m.tiers.find(t => t.name === m.recommended && !t.installed) || m.tiers.find(t => !t.installed) || {}).name;
     }
     const running = d.state === 'running';
-    const list = $('div', { class: 'tiers' });
+    const grid = $('div', { class: 'sizes' });
     for (const t of m.tiers) {
       const chosen = running ? d.tier === t.name : pickedTier === t.name;
-      const card = $('div', { class: 'tier' + (chosen ? ' on' : '') },
-        $('div', { class: 'radio' }),
-        $('div', { class: 'what' },
-          $('div', { class: 'title' }, cap(t.name),
-            t.name === m.recommended ? $('span', { class: 'tag' }, 'Suggested for this ' + where) : null,
-            t.installed ? $('span', { class: 'ok' }, 'Downloaded') : null),
-          $('div', { class: 'why' }, t.blurb),
-          $('div', { class: 'why' }, `${t.speech} + ${t.cleanup}`)),
-        $('div', { class: 'size' }, t.installed ? '' : fmtMB(t.missing_mb || t.download_mb)));
-      if (!t.installed && !running) card.addEventListener('click', () => { pickedTier = t.name; show('models'); });
-      list.append(card);
+      // A div, not a button: WebKit centres a button's content vertically.
+      const card = $('div', { class: 'size' + (chosen ? ' on' : '') + (t.installed ? ' got' : ''), role: 'button', tabindex: '0', 'aria-pressed': String(chosen) },
+        t.name === m.recommended ? $('span', { class: 'start-here' }, $('span', {}, 'start here'), penSvg('0 0 56 56', PEN.arrow)) : null,
+        $('div', { class: 'size-name' }, cap(t.name), t.installed ? $('span', { class: 'got-label' }, 'Downloaded') : null),
+        $('p', { class: 'size-line' }, t.blurb),
+        $('dl', { class: 'facts' },
+          $('div', {}, $('dt', {}, 'Download'), $('dd', {}, t.installed ? 'done' : fmtMB(t.missing_mb || t.download_mb))),
+          $('div', {}, $('dt', {}, 'Languages'), $('dd', {}, t.languages))));
+      if (t.installed || running) card.setAttribute('aria-disabled', 'true');
+      else {
+        const pick = () => { pickedTier = t.name; show('models'); };
+        card.addEventListener('click', pick);
+        card.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } });
+      }
+      grid.append(card);
     }
-    const bar = $('div', { class: 'dl' });
+    const dl = $('div', { class: 'dl' });
     if (running) {
       const pct = d.total ? Math.min(100, 100 * d.done / d.total) : 0;
-      bar.append($('div', { style: 'flex:1;min-width:240px' },
-        $('div', { class: 'progress', style: 'margin:0 0 6px' }, $('div', { style: `width:${pct.toFixed(1)}%` })),
-        $('div', { class: 'note', style: 'margin:0' },
-          `Downloading ${cap(d.tier)}: ${fmtMB(d.done / 1e6)} of ${fmtMB(d.total / 1e6)}` +
-          (d.files ? ` · file ${d.index} of ${d.files}` : ''))),
-        $('button', { class: 'btn', onclick: () => umless.call('cancel_install').then(() => show('models')) }, 'Cancel'));
+      dl.append($('div', { style: 'flex:1;min-width:260px;max-width:520px' },
+        $('div', { class: 'bar', role: 'progressbar', 'aria-valuenow': String(Math.round(pct)), 'aria-valuemin': '0', 'aria-valuemax': '100' }, $('div', { style: `width:${pct.toFixed(1)}%` })),
+        $('div', { class: 'progress-text' },
+          `Downloading ${cap(d.tier)}: ${fmtMB(d.done / 1e6)} of ${fmtMB(d.total / 1e6)}` + (d.files ? ` · file ${d.index} of ${d.files}` : ''))),
+        $('button', { class: 'btn quiet', onclick: () => umless.call('cancel_install').then(() => show('models')) }, 'Cancel'));
     } else if (d.state === 'done') {
-      bar.append($('span', { class: 'ok' }, `${cap(d.tier)} is downloaded. Starting Umless…`));
+      dl.append($('span', { class: 'ok' }, `${cap(d.tier)} is downloaded. Starting Umless…`));
       setTimeout(() => umless.call('restart'), 800);
     } else if (pickedTier) {
       const t = m.tiers.find(x => x.name === pickedTier);
-      bar.append($('button', { class: 'btn primary', onclick: async () => {
+      dl.append($('button', { class: 'btn primary big', onclick: async () => {
         try { await umless.call('install_tier', { tier: pickedTier }); } catch (err) { toast(err.message); }
         show('models');
-      } }, `Download ${cap(pickedTier)} (${fmtMB(t.missing_mb || t.download_mb)})`));
-      if (d.state === 'failed') bar.append($('span', { class: 'no' }, 'The download stopped: ' + d.error + '. Check your connection and try again; finished files are kept.'));
-      if (d.state === 'cancelled') bar.append($('span', { class: 'note', style: 'margin:0' }, 'Cancelled.'));
+      } }, `Download ${cap(pickedTier)} · ${fmtMB(t.missing_mb || t.download_mb)}`));
+      if (d.state === 'failed') dl.append($('span', { class: 'no', style: 'font-weight:500' }, 'The download stopped: ' + d.error + '. Check your connection and try again; finished files are kept.'));
+      if (d.state === 'cancelled') dl.append($('span', { class: 'note', style: 'margin:0' }, 'Cancelled.'));
     }
     clearTimeout(modelsTimer);
     if (running) modelsTimer = setTimeout(() => { if (page === 'models') show('models'); }, 500);
     document.getElementById('nav-setup').hidden = false;
-    return [
-      $('h1', {}, first ? 'Welcome to Umless' : 'Download a model'),
-      $('p', { class: 'sub' }, (first ? `Umless turns your speech into text right here on this ${where}. It needs one speech model, downloaded once; nothing you say ever leaves this ${where}. ` : '') +
+    return $('div', { class: 'page' },
+      $('h1', {}, 'Pick your size.'),
+      $('p', { class: 'sub' }, (first ? `Umless turns your speech into text on this ${where}. It needs one speech model, downloaded once; nothing you say leaves this ${where}. ` : '') +
         `This ${where} has ${m.ram_gb} GB of memory, so ${cap(m.recommended)} is the one to start with. You can add another later in Settings.`),
-      list,
-      bar,
-      $('p', { class: 'note' }, 'Models are saved in ' + m.dir),
-    ];
+      grid, dl,
+      $('p', { class: 'note' }, 'Models are saved in ', $('span', { class: 'mono' }, m.dir)));
   },
 
   async setup() {
@@ -314,60 +407,59 @@ const pages = {
     const needed = steps.filter(x => !x.done).length;
     const done = steps.length - needed + (triedIt ? 1 : 0);
     const total = steps.length + 1;
+    const num = (ok, i) => ok ? $('div', { class: 'num tick', 'aria-label': 'Done' }, penSvg('0 0 18 18', PEN.tick)) : $('div', { class: 'num' }, String(i));
     const list = $('div', { class: 'steps' });
     steps.forEach((st, i) => {
       const more = $('div', { class: 'more' });
       if (!st.done && st.more) more.append(st.more);
       if (!st.done && st.restart) more.append($('button', { class: 'btn', onclick: () => umless.call('restart') }, 'Restart Umless'));
-      if (!st.done && st.reset) more.append($('button', { class: 'btn', title: 'For an entry left over from an older Umless build', onclick: async () => {
+      if (!st.done && st.reset) more.append($('button', { class: 'btn quiet', title: 'For an entry left over from an older Umless build', onclick: async () => {
         await umless.call('reset_permission', { what: st.reset }); await umless.call('request', { what: st.reset });
         toast('Old entry cleared. Turn Umless on again.');
       } }, 'On but still not allowed? Reset'));
       list.append($('div', { class: 'step' + (st.done ? ' done' : '') },
-        $('div', { class: 'badge' }, st.done ? '✓' : String(i + 1)),
+        num(st.done, i + 1),
         $('div', { class: 'what' }, $('div', { class: 'title' }, st.title), $('div', { class: 'why' }, st.why), more.childNodes.length ? more : null),
         st.done ? null : $('div', { class: 'side' }, $('button', { class: 'btn primary', onclick: st.action[1] }, st.action[0]))));
     });
     const ready = s.done;
     const box = $('textarea', { placeholder: ready ? `Click here, hold ${K.hold} and say "Hello Umless, this is working."` : 'Finish the steps above first.' });
     if (!ready) box.disabled = true;
-    box.addEventListener('input', () => { if (box.value.trim().length > 3 && !triedIt) { triedIt = true; toast('It works 🎉'); show('setup'); } });
+    box.addEventListener('input', () => { if (box.value.trim().length > 3 && !triedIt) { triedIt = true; toast('It works.'); show('setup'); } });
     list.append($('div', { class: 'step' + (triedIt ? ' done' : '') },
-      $('div', { class: 'badge' }, triedIt ? '✓' : String(steps.length + 1)),
+      num(triedIt, steps.length + 1),
       $('div', { class: 'what' }, $('div', { class: 'title' }, 'Try it'),
         $('div', { class: 'why' }, `Hold ${K.hold} anywhere, speak, and let go.`), triedIt ? null : box)));
     clearTimeout(setupTimer);
     // Re-check every second while the user is in System Settings.
     if (!(ready && fnOk && triedIt)) setupTimer = setTimeout(() => { if (page === 'setup' && document.activeElement !== box) show('setup'); }, 1000);
     document.getElementById('nav-setup').hidden = ready && fnOk;
-    return [
-      $('h1', {}, needed ? 'Set up Umless' : triedIt ? 'You\'re all set' : 'Almost there'),
+    return $('div', { class: 'page' },
+      $('h1', {}, needed ? 'Set up Umless.' : triedIt ? 'You\'re all set.' : 'Almost there.'),
       $('p', { class: 'sub' }, needed
-        ? (mac() ? 'macOS asks you to allow a few things once.' : 'Umless needs a few things set up once.') + ' Each step turns green as soon as it\'s done.'
+        ? (mac() ? 'macOS asks you to allow a few things once.' : 'Umless needs a few things set up once.') + ' Each step is ticked as soon as it\'s done.'
         : `Everything is allowed. Try it below, then hold ${K.hold} anywhere you type.`),
-      $('div', { class: 'progress' }, $('div', { style: `width:${Math.round(100 * done / total)}%` })),
+      $('div', { class: 'bar setup-bar' }, $('div', { style: `width:${Math.round(100 * done / total)}%` })),
       list,
-      !needed && triedIt ? $('p', { class: 'note' }, $('a', { href: '#', onclick: ev => { ev.preventDefault(); show('home'); } }, 'Go to Home →')) : null,
-    ];
+      !needed && triedIt ? $('p', { class: 'note' }, $('a', { href: '#', onclick: ev => { ev.preventDefault(); show('home'); } }, 'Go to Home')) : null);
   },
 
   async home() {
     const { stats: s, recent } = await umless.call('home');
-    const stat = (n, l) => $('div', { class: 'card stat' }, $('div', { class: 'n' }, n), $('div', { class: 'l' }, l));
-    return [
-      $('h1', {}, 'Welcome back'),
+    const stat = (n, l) => $('div', { class: 'stat' }, $('div', { class: 'n' }, n), $('div', { class: 'l' }, l));
+    return $('div', { class: 'page' },
+      $('h1', {}, 'Welcome back.'),
       $('p', { class: 'sub' }, 'Hold ', $('kbd', {}, K.hold), ' anywhere, speak, and let go. Your words appear where your cursor is.'),
-      $('div', { class: 'grid' },
+      $('div', { class: 'stats' },
         stat(fmtNum(s.words), 'words dictated'),
         stat(fmtNum(s.words_week), 'words this week'),
-        stat(s.wpm ? `${s.wpm} wpm` : '—', 'speaking speed'),
+        stat(s.wpm ? `${s.wpm} wpm` : '–', 'speaking speed'),
         stat(fmtMinutes(s.saved_min), 'saved vs typing')),
       $('h2', {}, 'Recent'),
       recent.length
-        ? $('div', { class: 'list' }, recent.map(e => entryRow(e)))
-        : $('div', { class: 'list' }, $('div', { class: 'empty' }, `Nothing yet. Hold ${K.hold} and say something.`)),
-      recent.length ? $('p', { class: 'note' }, $('a', { href: '#', onclick: ev => { ev.preventDefault(); show('history'); } }, 'See all history →')) : null,
-    ];
+        ? $('div', { class: 'rows' }, recent.map(e => entryRow(e)))
+        : $('p', { class: 'empty' }, `Nothing yet. Hold ${K.hold} and say something.`),
+      recent.length ? $('p', { class: 'note' }, $('a', { href: '#', onclick: ev => { ev.preventDefault(); show('history'); } }, 'See all history')) : null);
   },
 
   async history() {
@@ -376,26 +468,25 @@ const pages = {
     const render = q => {
       list.replaceChildren();
       const shown = q ? entries.filter(e => (e.text + ' ' + e.raw).toLowerCase().includes(q.toLowerCase())) : entries;
-      if (!shown.length) { list.append($('div', { class: 'empty' }, q ? 'No matches.' : 'No dictations yet.')); return; }
+      if (!shown.length) { list.append($('p', { class: 'empty' }, q ? 'No matches.' : 'No dictations yet.')); return; }
       let day = null, group = null;
       for (const e of shown) {
         const d = dayLabel(e.at);
-        if (d !== day) { day = d; list.append($('div', { class: 'day' }, d)); group = $('div', { class: 'list' }); list.append(group); }
+        if (d !== day) { day = d; list.append($('div', { class: 'day' }, d)); group = $('div', { class: 'rows' }); list.append(group); }
         group.append(entryRow(e));
       }
     };
     render('');
-    return [
+    return $('div', { class: 'page' },
       $('h1', {}, 'History'),
-      $('p', { class: 'sub' }, `${entries.length.toLocaleString()} dictations, kept only on this Mac.`),
+      $('p', { class: 'sub' }, `${entries.length.toLocaleString()} dictations, kept only on this ${mac() ? 'Mac' : 'computer'}. Under each one is what you said, with what Umless left out struck through.`),
       $('div', { class: 'toolbar' },
-        $('input', { type: 'search', placeholder: 'Search what you said…', oninput: ev => render(ev.target.value) }),
+        $('input', { type: 'search', placeholder: 'Search what you said…', 'aria-label': 'Search history', oninput: ev => render(ev.target.value) }),
         $('button', { class: 'btn danger', onclick: async () => {
           if (!entries.length || !confirm('Delete all history? This can\'t be undone.')) return;
           await umless.call('clear'); show('history');
         } }, 'Clear all')),
-      list,
-    ];
+      list);
   },
 
   async dictionary() {
@@ -403,11 +494,11 @@ const pages = {
     const chips = $('div', { class: 'chips' });
     const render = () => {
       chips.replaceChildren();
-      if (!terms.length) chips.append($('div', { class: 'empty', style: 'width:100%' }, 'Add names, products and jargon you say often.'));
+      if (!terms.length) chips.append($('p', { class: 'empty' }, 'Add names, products and jargon you say often.'));
       for (const t of terms) chips.append($('div', { class: 'chip' }, t,
-        $('button', { title: 'Remove', onclick: async () => { terms = await umless.call('dict_remove', { term: t }); render(); } }, '×')));
+        $('button', { title: 'Remove', 'aria-label': `Remove ${t}`, onclick: async () => { terms = await umless.call('dict_remove', { term: t }); render(); } }, '×')));
     };
-    const input = $('input', { type: 'text', placeholder: 'e.g. SubFlo, Jatin Bishla, lien waivers' });
+    const input = $('input', { type: 'text', placeholder: 'e.g. SubFlo, Jatin Bishla, lien waivers', 'aria-label': 'New word or name' });
     const add = async () => {
       const term = input.value.trim();
       if (!term) return;
@@ -417,22 +508,21 @@ const pages = {
     input.addEventListener('keydown', ev => { if (ev.key === 'Enter') add(); });
     render();
     setTimeout(() => input.focus(), 0);
-    return [
+    return $('div', { class: 'page' },
       $('h1', {}, 'Dictionary'),
       $('p', { class: 'sub' }, 'Words Umless should always spell your way. If the speech model hears "Subflow", it types "SubFlo". Changes apply to your next dictation.'),
       $('div', { class: 'toolbar' }, input, $('button', { class: 'btn primary', onclick: add }, 'Add')),
-      chips,
-    ];
+      chips);
   },
 
   async settings() {
     const s = await umless.call('settings');
     const st = await umless.call('style');
     const tiers = await umless.call('tiers');
-    const tierSeg = $('div', { class: 'seg' });
+    const tierSeg = $('div', { class: 'seg', role: 'group', 'aria-label': 'Model size' });
     for (const t of tiers) {
       const b = $('button', { class: t.current ? 'on' : '', title: t.installed ? `${t.speech} + ${t.cleanup}` : 'Not downloaded' },
-        t.name[0].toUpperCase() + t.name.slice(1) + (t.installed ? '' : ' ↓'));
+        cap(t.name) + (t.installed ? '' : ' ↓'));
       b.addEventListener('click', async () => {
         if (t.current) return;
         if (!t.installed) { pickedTier = t.name; show('models'); return; }
@@ -441,7 +531,7 @@ const pages = {
       });
       tierSeg.append(b);
     }
-    const seg = $('div', { class: 'seg' });
+    const seg = $('div', { class: 'seg', role: 'group', 'aria-label': 'Writing style' });
     for (const [key, label] of Object.entries(STYLE_LABELS)) {
       const b = $('button', { class: key === st.current ? 'on' : '' }, label);
       b.addEventListener('click', async () => {
@@ -452,59 +542,57 @@ const pages = {
       seg.append(b);
     }
     const yes = ok => $('span', { class: ok ? 'ok' : 'no' }, ok ? 'Allowed' : 'Not allowed');
-    const toggle = (cmd, on) => {
-      const el = $('div', { class: 'switch' + (on ? ' on' : '') });
+    const toggle = (cmd, on, label) => {
+      const el = $('button', { class: 'switch' + (on ? ' on' : ''), role: 'switch', 'aria-checked': String(on), 'aria-label': label });
       el.addEventListener('click', async () => {
-        try { el.classList.toggle('on', await umless.call(cmd, { on: !el.classList.contains('on') })); }
+        try { const v = await umless.call(cmd, { on: !el.classList.contains('on') }); el.classList.toggle('on', v); el.setAttribute('aria-checked', String(v)); }
         catch (err) { toast(err.message); }
       });
       return el;
     };
-    const sw = toggle('set_login', s.login);
     const open = what => $('button', { class: 'btn', onclick: () => umless.call('open', { what }) },
       { dictionary: 'Open dictionary file', history: 'Show history file', log: 'Open log', privacy: 'Open Privacy settings' }[what]);
-    return [
+    const section = (title, ...kids) => $('div', { class: 'section' }, $('h3', {}, title), ...kids);
+    return $('div', { class: 'page' },
       $('h1', {}, 'Settings'),
-      $('p', { class: 'sub' }, 'Everything runs on this Mac. Nothing you say leaves it.'),
-      $('div', { class: 'stack' },
-        $('div', { class: 'card' }, $('h3', {}, 'Shortcuts'), $('div', { class: 'kv' },
-          $('div', { class: 'k' }, 'Dictate'), $('div', {}, 'Hold ', $('kbd', {}, K.hold), ', speak, let go'),
-          $('div', { class: 'k' }, 'Command mode'), $('div', {}, 'Hold ', $('kbd', {}, K.hold), ' + ', $('kbd', {}, K.cmd), ' and say what to write: \u201creply saying I\u2019ll send it Friday\u201d, or select text and say \u201cmake this shorter\u201d'),
-          $('div', { class: 'k' }, 'Cancel'), $('div', {}, 'Press any other key while holding ', $('kbd', {}, K.hold)))),
-        $('div', { class: 'card' }, $('h3', {}, 'Writing style'), seg,
-          $('div', { class: 'styles' },
-            $('div', { class: 'k' }, 'Auto'), $('div', {}, 'Picks one from the app you\'re typing into.'),
-            $('div', { class: 'k' }, 'AI prompt'), $('div', {}, 'Claude, ChatGPT, Codex, Cursor, terminals: a clear, structured prompt.'),
-            $('div', { class: 'k' }, 'Formal'), $('div', {}, 'Mail, Gmail, Outlook, Teams, LinkedIn: polished, professional sentences.'),
-            $('div', { class: 'k' }, 'Casual'), $('div', {}, 'Slack, WhatsApp, Messages, Discord: your own voice, just cleaned.'),
-            $('div', { class: 'k' }, 'Clean'), $('div', {}, 'Everywhere else: fillers and false starts removed, nothing else changed.')),
-          st.lite ? $('p', { class: 'note' }, 'On the Lite tier, Formal and AI prompt use Clean for now; Lite\'s small model can\'t rewrite safely yet.') : null),
-        $('div', { class: 'card' }, $('h3', {}, 'General'), $('div', { class: 'kv' },
-          $('div', { class: 'k' }, 'Launch at login'), sw,
-          $('div', { class: 'k' }, 'Use what\u2019s on screen'), toggle('set_screen_context', s.screen_context),
-          $('div', { class: 'k' }, 'Learn from my corrections'), toggle('set_learning', s.learning)),
-          $('p', { class: 'note' }, (mac() ? '' : 'Windows and Linux: Umless reads only the app and window title for now. ') + 'Screen: Umless reads the text around your cursor (the email thread, the chat) to spell names right, match the conversation\u2019s tone, and give command mode context. It stays on this ' + (mac() ? 'Mac' : 'computer') + ' and is never saved. Corrections: when you fix a name Umless typed, it adds your spelling to the dictionary.')),
-        $('div', { class: 'card' }, $('h3', {}, 'Models'), tierSeg, $('div', { class: 'kv', style: 'margin-top:12px' },
-          $('div', { class: 'k' }, 'Speech'), $('div', {}, s.speech),
-          $('div', { class: 'k' }, 'Cleanup'), $('div', {}, s.cleanup)),
-          $('p', { class: 'note' }, 'Lite is fastest and smallest, Max most accurate. Switching restarts Umless. Tiers marked ↓ aren\'t downloaded yet: click one to download it.')),
-        $('div', { class: 'card' }, $('h3', {}, 'Permissions'), $('div', { class: 'kv' },
-          $('div', { class: 'k' }, 'Input Monitoring'), yes(s.input_monitoring),
-          $('div', { class: 'k' }, 'Accessibility'), yes(s.accessibility)),
-          $('p', { class: 'note' }, 'Input Monitoring lets Umless see the fn key; Accessibility lets it type for you.'),
-          $('div', { style: 'margin-top:10px' }, open('privacy'))),
-        $('div', { class: 'card' }, $('h3', {}, 'Your data'),
-          $('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, open('dictionary'), open('history'), open('log')),
-          $('p', { class: 'note' }, `Umless ${s.version}`))),
-    ];
+      $('p', { class: 'sub' }, `Everything runs on this ${mac() ? 'Mac' : 'computer'}. Nothing you say leaves it.`),
+      section('Shortcuts', $('div', { class: 'kv' },
+        $('div', { class: 'k' }, 'Dictate'), $('div', {}, 'Hold ', $('kbd', {}, K.hold), ', speak, let go'),
+        $('div', { class: 'k' }, 'Command mode'), $('div', {}, 'Hold ', $('kbd', {}, K.hold), ' + ', $('kbd', {}, K.cmd), ' and say what to write: “reply saying I’ll send it Friday”, or select text and say “make this shorter”'),
+        $('div', { class: 'k' }, 'Cancel'), $('div', {}, 'Press any other key while holding ', $('kbd', {}, K.hold)))),
+      section('Writing style', seg,
+        $('div', { class: 'styles' },
+          $('div', { class: 'k' }, 'Auto'), $('div', {}, 'Picks one from the app you\'re typing into.'),
+          $('div', { class: 'k' }, 'AI prompt'), $('div', {}, 'Claude, ChatGPT, Codex, Cursor, terminals: a clear, structured prompt.'),
+          $('div', { class: 'k' }, 'Formal'), $('div', {}, 'Mail, Gmail, Outlook, Teams, LinkedIn: polished, professional sentences.'),
+          $('div', { class: 'k' }, 'Casual'), $('div', {}, 'Slack, WhatsApp, Messages, Discord: your own voice, just cleaned.'),
+          $('div', { class: 'k' }, 'Clean'), $('div', {}, 'Everywhere else: fillers and false starts removed, nothing else changed.')),
+        st.lite ? $('p', { class: 'note' }, 'On the Lite tier, Formal and AI prompt use Clean for now; Lite\'s small model can\'t rewrite safely yet.') : null),
+      section('General', $('div', { class: 'kv' },
+        $('div', { class: 'k' }, 'Launch at login'), $('div', {}, toggle('set_login', s.login, 'Launch at login')),
+        $('div', { class: 'k' }, 'Use what’s on screen'), $('div', {}, toggle('set_screen_context', s.screen_context, 'Use what’s on screen')),
+        $('div', { class: 'k' }, 'Learn from my corrections'), $('div', {}, toggle('set_learning', s.learning, 'Learn from my corrections'))),
+        $('p', { class: 'note' }, (mac() ? '' : 'Windows and Linux: Umless reads only the app and window title for now. ') + 'Screen: Umless reads the text around your cursor (the email thread, the chat) to spell names right, match the conversation’s tone, and give command mode context. It stays on this ' + (mac() ? 'Mac' : 'computer') + ' and is never saved. Corrections: when you fix a name Umless typed, it adds your spelling to the dictionary.')),
+      section('Model size', tierSeg, $('div', { class: 'kv', style: 'margin-top:14px' },
+        $('div', { class: 'k' }, 'Speech'), $('div', {}, s.speech),
+        $('div', { class: 'k' }, 'Cleanup'), $('div', {}, s.cleanup)),
+        $('p', { class: 'note' }, 'Lite is fastest and smallest, Max most accurate. Switching restarts Umless. Sizes marked ↓ aren\'t downloaded yet: click one to download it.')),
+      section('Permissions', $('div', { class: 'kv' },
+        $('div', { class: 'k' }, 'Input Monitoring'), yes(s.input_monitoring),
+        $('div', { class: 'k' }, 'Accessibility'), yes(s.accessibility)),
+        $('p', { class: 'note' }, 'Input Monitoring lets Umless see the fn key; Accessibility lets it type for you.'),
+        $('div', { style: 'margin-top:12px' }, open('privacy'))),
+      section('Your data',
+        $('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, open('dictionary'), open('history'), open('log')),
+        $('p', { class: 'note' }, `Umless ${s.version}`)));
   },
 };
 
 async function show(name) {
   page = name;
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.page === name));
-  try { main.replaceChildren(...(await pages[name]()).filter(Boolean)); }
-  catch (err) { main.replaceChildren($('div', { class: 'empty' }, 'Something went wrong: ' + err.message)); }
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.page === name || (name === 'models' && b.dataset.page === 'setup')));
+  try { main.replaceChildren(await pages[name]()); }
+  catch (err) { main.replaceChildren($('div', { class: 'page' }, $('p', { class: 'empty' }, 'This page didn\'t load: ' + err.message))); }
   main.scrollTop = 0;
 }
 document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => show(b.dataset.page)));

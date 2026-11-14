@@ -135,6 +135,7 @@ impl Hub {
                     "tiers": Tier::ALL.iter().map(|&t| json!({
                         "name": t.name(),
                         "blurb": crate::download::blurb(t),
+                        "languages": crate::download::languages(t),
                         "speech": t.asr_label(),
                         "cleanup": t.llm_label_in(&self.models),
                         "download_mb": t.download_mb(),

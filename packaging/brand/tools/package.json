@@ -1,0 +1,11 @@
+{
+  "name": "umless-brand-tools",
+  "private": true,
+  "type": "module",
+  "description": "Generates Umless's icons from packaging/brand/*.svg (scripts/make-icons.sh)",
+  "dependencies": {
+    "fontkit": "2.0.4",
+    "sharp": "0.35.5",
+    "wawoff2": "2.0.1"
+  }
+}

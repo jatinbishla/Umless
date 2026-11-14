@@ -33,6 +33,12 @@ OutputBaseFilename=Umless-windows-x64-setup
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+; Brand artwork from scripts/make-icons.sh (paths are relative to this script). Each image
+; comes at 100% and 200% so Inno Setup picks the sharper one on high-DPI screens.
+SetupIconFile=umless.ico
+WizardImageFile=wizard.bmp,wizard-2x.bmp
+WizardSmallImageFile=wizard-small.bmp,wizard-small-2x.bmp
+AppComments=Talk messy. It types clean.
 UninstallDisplayName=Umless
 UninstallDisplayIcon={app}\umless.exe
 ; Umless lives in the tray: close it before files are replaced.

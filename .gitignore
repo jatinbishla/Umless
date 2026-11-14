@@ -10,3 +10,4 @@
 /dist
 /.tools
 __pycache__/
+/packaging/brand/tools/node_modules

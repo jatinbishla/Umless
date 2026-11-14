@@ -26,7 +26,8 @@ cargo build --release --locked
 
 rm -rf "$APPDIR" "$IMAGE"
 LIB="$APPDIR/usr/lib/umless"
-mkdir -p "$LIB" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/scalable/apps"
+mkdir -p "$LIB" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/scalable/apps" \
+  "$APPDIR/usr/share/icons/hicolor/256x256/apps" "$APPDIR/usr/share/icons/hicolor/512x512/apps"
 install -m 755 target/release/umless "$LIB/umless"
 # The speech libraries go next to the binary: its rpath is $ORIGIN (see docs/cross-platform.md).
 cp -P target/release/*.so* "$LIB/" 2>/dev/null || true
@@ -38,6 +39,9 @@ install -m 644 packaging/linux/umless.desktop "$APPDIR/umless.desktop"
 install -m 644 packaging/linux/umless.desktop "$APPDIR/usr/share/applications/umless.desktop"
 install -m 644 packaging/linux/umless.svg "$APPDIR/umless.svg"
 install -m 644 packaging/linux/umless.svg "$APPDIR/usr/share/icons/hicolor/scalable/apps/umless.svg"
+# Raster sizes for desktops that don't scale SVG app icons (from scripts/make-icons.sh).
+install -m 644 packaging/linux/umless-256.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/umless.png"
+install -m 644 packaging/linux/umless-512.png "$APPDIR/usr/share/icons/hicolor/512x512/apps/umless.png"
 
 # Every library umless needs must resolve, and the speech ones from inside the AppDir.
 MISSING=$(LD_LIBRARY_PATH="$LIB" ldd "$LIB/umless" | grep 'not found' || true)

@@ -227,6 +227,7 @@ fn open_window(shell: &mut Shell, target: &EventLoopWindowTarget<UserEvent>) {
         .with_title("Umless")
         .with_inner_size(LogicalSize::new(980.0, 660.0))
         .with_min_inner_size(LogicalSize::new(760.0, 520.0))
+        .with_window_icon(window_icon())
         .build(target)
     {
         Ok(w) => w,
@@ -439,54 +440,22 @@ enum Icon {
     Error,
 }
 
-/// Umless's mark, drawn into a 32×32 RGBA image: five rounded bars, hanging from the
-/// top like an "M" when idle and centred into a waveform while listening, on a dark
-/// rounded square so it reads on light and dark taskbars.
+/// Umless's mark in the tray, 32×32: the small struck "Um" on its paper tile when idle, the
+/// tile red while listening and ink while working, and a red badge on errors. The RGBA files
+/// come from packaging/brand via scripts/make-icons.sh.
 fn icon(kind: Icon) -> tray_icon::Icon {
-    const S: usize = 32;
-    let (heights, hang): ([f32; 5], bool) = match kind {
-        Icon::Idle | Icon::Error => ([26.0, 14.0, 21.0, 14.0, 26.0], true),
-        Icon::Listening => ([14.0, 26.0, 10.0, 26.0, 14.0], false),
-        Icon::Working => ([18.0, 18.0, 18.0, 18.0, 18.0], false),
+    let rgba: &[u8] = match kind {
+        Icon::Idle => include_bytes!("../assets/tray-idle.rgba"),
+        Icon::Listening => include_bytes!("../assets/tray-listening.rgba"),
+        Icon::Working => include_bytes!("../assets/tray-working.rgba"),
+        Icon::Error => include_bytes!("../assets/tray-error.rgba"),
     };
-    let bg: [u8; 3] = match kind {
-        Icon::Listening => [214, 48, 49],
-        Icon::Error => [214, 140, 0],
-        _ => [32, 32, 36],
-    };
-    let mut rgba = vec![0u8; S * S * 4];
-    let radius = 7.0f32;
-    let inside_rounded = |x: f32, y: f32, x0: f32, y0: f32, x1: f32, y1: f32, r: f32| {
-        let cx = x.clamp(x0 + r, x1 - r);
-        let cy = y.clamp(y0 + r, y1 - r);
-        (x - cx).powi(2) + (y - cy).powi(2) <= r * r
-    };
-    let (bar, gap) = (4.0f32, 1.6f32);
-    let x_start = (S as f32 - (5.0 * bar + 4.0 * gap)) / 2.0;
-    let tallest = 26.0f32;
-    for py in 0..S {
-        for px in 0..S {
-            let (x, y) = (px as f32 + 0.5, py as f32 + 0.5);
-            let i = (py * S + px) * 4;
-            if !inside_rounded(x, y, 0.0, 0.0, S as f32, S as f32, radius) {
-                continue;
-            }
-            let mut c = bg;
-            for (b, h) in heights.iter().enumerate() {
-                let x0 = x_start + b as f32 * (bar + gap);
-                let y0 = if hang {
-                    (S as f32 - tallest) / 2.0
-                } else {
-                    (S as f32 - h) / 2.0
-                };
-                if inside_rounded(x, y, x0, y0, x0 + bar, y0 + h, bar / 2.0) {
-                    c = [255, 255, 255];
-                }
-            }
-            rgba[i..i + 4].copy_from_slice(&[c[0], c[1], c[2], 255]);
-        }
-    }
-    tray_icon::Icon::from_rgba(rgba, S as u32, S as u32).expect("valid icon size")
+    tray_icon::Icon::from_rgba(rgba.to_vec(), 32, 32).expect("valid icon size")
+}
+
+/// The window's title-bar and taskbar icon: the mark, 64×64.
+fn window_icon() -> Option<tao::window::Icon> {
+    tao::window::Icon::from_rgba(include_bytes!("../assets/window-64.rgba").to_vec(), 64, 64).ok()
 }
 
 fn open_in_editor(path: &std::path::Path) {

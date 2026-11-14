@@ -42,6 +42,7 @@ fi
 rm -rf "$APP" "$DMG"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp target/release/umless "$APP/Contents/MacOS/Umless"
+cp packaging/macos/Umless.icns "$APP/Contents/Resources/Umless.icns"  # from scripts/make-icons.sh
 
 # As make-app.sh's, without LSEnvironment: no models folder or tier is baked in.
 cat > "$APP/Contents/Info.plist" <<EOF
@@ -53,6 +54,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
   <key>CFBundleName</key><string>Umless</string>
   <key>CFBundleDisplayName</key><string>Umless</string>
   <key>CFBundleExecutable</key><string>Umless</string>
+  <key>CFBundleIconFile</key><string>Umless</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
@@ -80,9 +82,26 @@ codesign -d -r- "$APP" 2>&1 | grep designated || true
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
-ditto "$APP" "$STAGE/Umless.app"
-ln -s /Applications "$STAGE/Applications"
-hdiutil create -quiet -volname "Umless" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG"
+# The dmg window: paper background with the wordmark and a red arrow to Applications, fixed
+# icon positions and the app icon as the volume icon. dmgbuild (pinned, in a venv under
+# .tools/) writes the Finder layout without scripting Finder, so it works headless. If it
+# can't be installed or fails, the dmg is still built, just without the layout.
+tiffutil -cathidpicheck packaging/macos/dmg-background.png packaging/macos/dmg-background@2x.png \
+  -out "$STAGE/background.tiff" >/dev/null
+VENV=.tools/dmgbuild-venv
+if [ "${UMLESS_PLAIN_DMG:-}" != 1 ] && { [ -x "$VENV/bin/dmgbuild" ] \
+     || { python3 -m venv "$VENV" && "$VENV/bin/pip" install -q dmgbuild==1.6.5; }; } \
+   && "$VENV/bin/dmgbuild" -s packaging/macos/dmg-settings.py -D app="$APP" \
+        -D background="$STAGE/background.tiff" -D volume_icon=packaging/macos/Umless.icns \
+        "Umless" "$DMG"; then
+  echo "Laid out the dmg window with dmgbuild"
+else
+  echo "dmgbuild unavailable or failed: building a plain dmg (no background or icon layout)" >&2
+  rm -f "$DMG"
+  ditto "$APP" "$STAGE/plain/Umless.app"
+  ln -s /Applications "$STAGE/plain/Applications"
+  hdiutil create -quiet -volname "Umless" -srcfolder "$STAGE/plain" -fs HFS+ -format UDZO -ov "$DMG"
+fi
 
 case "$IDENTITY" in
   -) ;;  # an ad hoc signature on a dmg means nothing to Gatekeeper

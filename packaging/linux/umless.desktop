@@ -1,8 +1,10 @@
 [Desktop Entry]
 Type=Application
 Name=Umless
-Comment=Local voice dictation: hold a key, speak, and the text is typed
+GenericName=Voice dictation
+Comment=Talk messy. It types clean.
 Exec=umless
 Icon=umless
 Terminal=false
 Categories=Utility;Accessibility;
+Keywords=dictation;speech;voice;transcription;

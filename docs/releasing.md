@@ -26,6 +26,34 @@ Source installs don't change. `install.sh` and `install.ps1` still use the clone
 `UMLESS_MODELS` still override both. More tiers can be downloaded later from
 Settings → Models.
 
+## Brand assets
+
+The logo and every icon come from three SVGs in `packaging/brand/`, with the letters as
+outlines (Fraunces) so they render the same without the font installed:
+
+| File | Use |
+|---|---|
+| `umless-mark.svg` | the struck "Um" on its paper tile (also the website's favicon) |
+| `umless-mark-small.svg` | the version for 16 to 32 px: tile to the edge, letters enlarged, heavier strike |
+| `umless-wordmark.svg`, `umless-wordmark-light.svg` | "Umless" with the struck "Um", ink on transparent and light on dark |
+
+`packaging/brand/derived/` holds the state icons and installer artwork made from them.
+`scripts/make-icons.sh` turns all of it into the files the app and installers use, and they
+are committed, so a build never runs it:
+
+- `packaging/macos/Umless.icns`, `dmg-background.png` (+ `@2x`)
+- `packaging/windows/umless.ico`, `wizard*.bmp`
+- `packaging/linux/umless.svg`, `umless-256.png`, `umless-512.png`
+- `crates/umless-shell/assets/` (menu-bar templates, tray states, window icon)
+- `apps/cli/src/ui/fonts.css` (Fraunces, Geist and JetBrains Mono, embedded) and `wordmark.svg`
+
+Run `scripts/make-icons.sh` after changing an SVG. After a design change in the generator
+(`packaging/brand/tools/outline.mjs`: sizes, weights, the strike), run
+`scripts/make-icons.sh --outline` to rewrite the SVGs first. It needs Node; its tools
+(fontkit, wawoff2, sharp) install into `packaging/brand/tools/node_modules`, and the `.icns`
+step needs macOS. The fonts are under the SIL Open Font License
+(`packaging/brand/fonts/LICENSE-*.txt`).
+
 ## Cutting a release
 
 1. Set `version` in the root `Cargo.toml` (e.g. `0.2.0`), run `cargo build` so `Cargo.lock`

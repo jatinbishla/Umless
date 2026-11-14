@@ -113,14 +113,21 @@ impl Downloads {
     }
 }
 
-/// What each tier is for, as install.sh describes them.
+/// What each tier is for, in the website's words ("Pick your size").
 pub fn blurb(tier: Tier) -> &'static str {
     match tier {
-        Tier::Lite => "Fastest, runs on any laptop. English.",
-        Tier::Standard => "The best balance. 25 European languages.",
-        Tier::Max => {
-            "Most accurate, 99 languages including Hindi. Needs Apple Silicon or a fast GPU to feel instant."
-        }
+        Tier::Lite => "Fastest, for any laptop",
+        Tier::Standard => "The one most people should pick",
+        Tier::Max => "Most accurate",
+    }
+}
+
+/// The languages a tier understands, as the website lists them.
+pub fn languages(tier: Tier) -> &'static str {
+    match tier {
+        Tier::Lite => "English",
+        Tier::Standard => "25 European languages",
+        Tier::Max => "99 languages, including Hindi",
     }
 }
 

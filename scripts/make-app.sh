@@ -25,6 +25,7 @@ cargo build --release --quiet
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp target/release/umless "$APP/Contents/MacOS/Umless"
+cp packaging/macos/Umless.icns "$APP/Contents/Resources/Umless.icns"  # from scripts/make-icons.sh
 
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -35,6 +36,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
   <key>CFBundleName</key><string>Umless</string>
   <key>CFBundleDisplayName</key><string>Umless</string>
   <key>CFBundleExecutable</key><string>Umless</string>
+  <key>CFBundleIconFile</key><string>Umless</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>

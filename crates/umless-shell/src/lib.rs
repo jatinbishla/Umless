@@ -83,19 +83,18 @@ mod imp {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
 
-    use block2::RcBlock;
     use dispatch2::DispatchQueue;
     use objc2::rc::Retained;
-    use objc2::runtime::{AnyObject, Bool, NSObject, NSObjectProtocol, ProtocolObject};
-    use objc2::{MainThreadMarker, MainThreadOnly, define_class, msg_send, sel};
+    use objc2::runtime::{AnyObject, NSObject, NSObjectProtocol, ProtocolObject};
+    use objc2::{AllocAnyThread, MainThreadMarker, MainThreadOnly, define_class, msg_send, sel};
     use objc2_app_kit::{
-        NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSBezierPath, NSBox,
+        NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSBox,
         NSBoxType, NSColor, NSFont, NSImage, NSMenu, NSMenuItem, NSPanel, NSScreen, NSSound,
         NSStatusBar, NSStatusItem, NSStatusWindowLevel, NSTextAlignment, NSTextField,
         NSTitlePosition, NSVariableStatusItemLength, NSWindow, NSWindowCollectionBehavior,
         NSWindowStyleMask,
     };
-    use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
+    use objc2_foundation::{NSData, NSPoint, NSRect, NSSize, NSString};
     use objc2_service_management::{SMAppService, SMAppServiceStatus};
     use objc2_web_kit::{
         WKScriptMessage, WKScriptMessageHandler, WKUserContentController, WKWebView,
@@ -516,55 +515,27 @@ mod imp {
         Error,
     }
 
-    /// Umless's mark: an "M" drawn as five sound-wave bars hanging from the top, so the
-    /// inner bars form the letter's V. While listening the bars centre into a live waveform.
-    /// Returns bar heights (points, of 18) and whether they hang from the top.
-    fn bars(icon: Icon) -> ([f64; 5], bool) {
-        match icon {
-            Icon::Idle | Icon::Error => ([15.0, 8.0, 12.0, 8.0, 15.0], true),
-            Icon::Listening => ([8.0, 15.0, 6.0, 15.0, 8.0], false),
-            Icon::Working => ([10.0, 10.0, 10.0, 10.0, 10.0], false),
-        }
-    }
-
-    /// A template image, so macOS tints it for light and dark menu bars.
+    /// Umless's mark in the menu bar: the struck "Um" as a template image, so macOS tints it
+    /// for light and dark menu bars. Idle is the mark; listening knocks it out of a solid
+    /// tile; working shows the strike half drawn, the pen still moving. The PNGs (18 pt at 2x)
+    /// come from packaging/brand via scripts/make-icons.sh.
     fn icon_image(icon: Icon) -> Option<Retained<NSImage>> {
-        if let Icon::Error = icon {
-            let img = NSImage::imageWithSystemSymbolName_accessibilityDescription(
-                &NSString::from_str("exclamationmark.triangle"),
-                Some(&NSString::from_str("Umless needs attention")),
-            )?;
-            img.setTemplate(true);
-            return Some(img);
-        }
-        const SIZE: f64 = 18.0;
-        const BAR: f64 = 2.4;
-        const GAP: f64 = 1.1;
-        const TALLEST: f64 = 15.0;
-        let (heights, hang) = bars(icon);
-        let draw = RcBlock::new(move |_rect: NSRect| -> Bool {
-            NSColor::blackColor().setFill();
-            let x0 = (SIZE - (5.0 * BAR + 4.0 * GAP)) / 2.0;
-            for (i, h) in heights.iter().enumerate() {
-                let rect = NSRect::new(
-                    NSPoint::new(
-                        x0 + i as f64 * (BAR + GAP),
-                        // y grows upwards: hanging bars share the top edge of the tallest.
-                        if hang {
-                            (SIZE + TALLEST) / 2.0 - h
-                        } else {
-                            (SIZE - h) / 2.0
-                        },
-                    ),
-                    NSSize::new(BAR, *h),
-                );
-                NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect, BAR / 2.0, BAR / 2.0)
-                    .fill();
+        let png: &[u8] = match icon {
+            Icon::Error => {
+                let img = NSImage::imageWithSystemSymbolName_accessibilityDescription(
+                    &NSString::from_str("exclamationmark.triangle"),
+                    Some(&NSString::from_str("Umless needs attention")),
+                )?;
+                img.setTemplate(true);
+                return Some(img);
             }
-            Bool::YES
-        });
-        let img =
-            NSImage::imageWithSize_flipped_drawingHandler(NSSize::new(SIZE, SIZE), false, &draw);
+            Icon::Idle => include_bytes!("../assets/menubar-idle.png"),
+            Icon::Listening => include_bytes!("../assets/menubar-listening.png"),
+            Icon::Working => include_bytes!("../assets/menubar-working.png"),
+        };
+        let data = NSData::with_bytes(png);
+        let img = NSImage::initWithData(NSImage::alloc(), &data)?;
+        img.setSize(NSSize::new(18.0, 18.0));
         img.setTemplate(true);
         Some(img)
     }
